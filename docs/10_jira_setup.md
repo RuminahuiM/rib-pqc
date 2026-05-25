@@ -35,11 +35,13 @@
 
 ---
 
-## 2. Label-Konvention
+## 2. Priorisierung und Label-Konvention
 
-Statt Custom Fields werden Labels für die Priorisierung und Sprint-Zuordnung genutzt (Custom Fields auf dem Free-Tier sind eingeschränkt). Verwendete Labels:
+Die Priorisierung der Stories erfolgt entlang von vier Achsen (MoSCoW, Sprint-Zuordnung, Stretch-Markierung, Built-in Priority Field). Konzept und Begründung dieser 4-Achsen-Logik stehen in `09_product_backlog.md` Sektion 1.3. Hier ist die Jira-spezifische Umsetzung.
 
-### Priorität (MoSCoW)
+Drei der Achsen werden über Labels abgebildet (MoSCoW, initiale Sprint-Zuordnung, Stretch), eine über das eingebaute Priority-Feld (Reihenfolge innerhalb Sprint). Labels statt Custom Fields, weil Custom Fields auf dem Free-Tier eingeschränkt sind.
+
+### Priorität (MoSCoW, Achse 1)
 
 | Label | Bedeutung |
 |---|---|
@@ -47,7 +49,7 @@ Statt Custom Fields werden Labels für die Priorisierung und Sprint-Zuordnung ge
 | `should` | Wichtig für Qualität, nicht blockierend |
 | `could` | Stretch, nur bei vorhandenem Slack |
 
-### Sprint-Zuordnung (initial)
+### Sprint-Zuordnung (Achse 2, initial)
 
 | Label | Bedeutung |
 |---|---|
@@ -57,14 +59,37 @@ Statt Custom Fields werden Labels für die Priorisierung und Sprint-Zuordnung ge
 | `sprint-3` | Initial in Sprint 3 geplant |
 | `sprint-4` | Initial in Sprint 4 geplant |
 
-Hinweis: Sobald Sprints in Jira als Sprint-Objekte angelegt sind, werden Stories dorthin gezogen. Die `sprint-X`-Labels dienen nur der Initial-Planung.
+Hinweis: Sobald Sprints in Jira als Sprint-Objekte angelegt sind, werden Stories dorthin gezogen. Die `sprint-X`-Labels dienen nur der Initial-Planung, im laufenden Betrieb ist das Sprint-Feld (Sprint-Objekt) führend.
 
-### Stretch-Markierung
+### Stretch-Markierung (Achse 3)
 
 | Label | Bedeutung |
 |---|---|
 | `sprint-stretch` | Sprint-Level-Stretch: gehört zu einem konkreten Sprint, wird aber nur bei verbleibender Kapazität nach Erfüllung des Sprint-Goals angerührt. Beispiel: APP-1, APP-4, APP-9 in Sprint 1. |
 | `project-stretch` | Project-Level-Stretch: nicht für einen konkreten Sprint zugesagt, gehört zum Epic STR. |
+
+### Built-in Priority Field (Achse 4)
+
+Zusätzlich zu den Labels wird das in Jira eingebaute Priority-Feld pro Story gesetzt, damit innerhalb eines Sprints sofort sichtbar ist, was Critical Path ist und was nicht. Das Feld erzeugt im Board ein farbiges Icon und ist sortierbar.
+
+| Priority | Wann gesetzt |
+|---|---|
+| `Highest` | Critical Path im aktuellen Sprint, Story blockiert mehrere andere im selben Sprint. Wird zuerst gearbeitet. |
+| `High` | Must im aktuellen Sprint, aber nicht blockierend. Auch Defer-Kandidaten (Should im Sprint die als erste rausfliegen wenn Scope-Cut nötig). |
+| `Medium` | Must in einem späteren Sprint (Sprint 2, 3 oder 4). Noch nicht aktiv. |
+| `Low` | Should aus jedem Sprint. |
+| `Lowest` | Could/Stretch (egal ob `sprint-stretch` oder `project-stretch`). |
+
+**Wann wird Priority gesetzt oder angepasst:**
+
+- Initial bei Story-Anlage: einmal beim Backlog-Transfer in Jira gesetzt.
+- Beim Sprint Planning: Stories aus dem nächsten Sprint werden von `Medium` auf `Highest`/`High`/`Low`/`Lowest` umgestellt, je nach Critical-Path-Analyse.
+- Beim Sprint-Refinement oder bei Scope-Anpassung: wenn eine Story als Defer-Kandidat klar wird, von `Highest`/`High` auf `Low` runtersetzen.
+- Beim Sprint-Abschluss: Stories die in den nächsten Sprint übernommen werden, von `Medium` umstellen entsprechend ihrer neuen Rolle im nächsten Sprint.
+
+**MCP-Setz-Anleitung:**
+
+Über das Atlassian-MCP per `editJiraIssue` mit `fields: { priority: { name: "Highest" } }` (oder `"High"`, `"Medium"`, `"Low"`, `"Lowest"`). Cloud-ID, Issue-Key, gewünschter Wert. Bulk-Operationen sind möglich, indem mehrere `editJiraIssue`-Calls parallel geschickt werden.
 
 ### Typ-Markierung
 

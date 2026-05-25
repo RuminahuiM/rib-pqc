@@ -51,11 +51,54 @@ Jede Story folgt dem folgenden Format:
 
 Story-IDs in diesem Markdown haben einen Epic-Prefix (z.B. INF-1, AUT-3). Beim Transfer nach Jira erhalten sie zusätzlich automatisch sequenzielle Jira-Keys (z.B. PQC-1, PQC-2). Die Mapping wird beim Jira-Setup festgehalten.
 
-### 1.3 Priorisierung (MoSCoW)
+### 1.3 Priorisierung (4 Achsen)
+
+Die Priorisierung der Stories in diesem Projekt erfolgt entlang von vier komplementären Achsen, die sich gegenseitig ergänzen. Jede Achse beantwortet eine andere Frage und gemeinsam ergeben sie eine eindeutige Reihenfolge sowohl auf Projekt- als auch auf Sprint-Ebene.
+
+**Achse 1: MoSCoW (Was muss gemacht werden)**
+
+Die klassische MoSCoW-Kategorisierung steht im Backlog-Markdown pro Story als Feld `Priorität` und wird in Jira als Label (`must`, `should`, `could`) gepflegt.
 
 - **Must:** Erfolgskriterium des Projekts, ohne dieses Item kann das Product Goal nicht erreicht werden.
-- **Should:** wichtig für die Qualität oder Vollständigkeit der Story, aber nicht blockierend für den Abgabe-Erfolg.
+- **Should:** Wichtig für die Qualität oder Vollständigkeit der Story, aber nicht blockierend für den Abgabe-Erfolg.
 - **Could:** Stretch-Goal, nur bei vorhandenem Slack zu bearbeiten.
+
+**Achse 2: Sprint-Zuordnung (Wann)**
+
+Jede Story ist einem Sprint zugewiesen (Sprint 0 bis 4 plus Stretch-Slot). Die Allokation ergibt sich aus Abhängigkeiten (Voraussetzungs-Beziehungen, Bottom-up: erst Foundation, dann Aufbau) und aus Risiko (riskante Stories früh, damit Lernen und Re-Planning möglich ist). Siehe Sektion 3 in diesem Dokument für die initiale Allokation und Abschnitt 3 im Sprint-Journal-Planning für die jeweils aktuelle Sprint-Zusammensetzung. Im Jira wird die Sprint-Zuordnung über das Sprint-Feld (nicht über Labels) abgebildet, sobald Sprint-Objekte existieren.
+
+**Achse 3: Stretch-Markierung (Optional innerhalb Sprint-Slot)**
+
+Manche Stories sind einem Sprint zugewiesen, aber nur "wenn Slack vorhanden". Sie werden im Jira mit einem Label gekennzeichnet:
+
+- `sprint-stretch`: Story gehört zu einem konkreten Sprint, wird aber nur bei verbleibender Kapazität nach Erfüllung des Sprint-Goals angerührt. Beispiel: APP-1, APP-4, APP-9 in Sprint 1.
+- `project-stretch`: Story gehört nicht zu einem konkreten Sprint, sondern zum Epic STR und wird erst nach Erreichen aller Must-Stories des Projekts angegangen.
+
+**Achse 4: Built-in Jira Priority Field (Reihenfolge innerhalb Sprint)**
+
+Damit innerhalb eines Sprints sofort sichtbar ist, welche Stories am Critical Path liegen (also andere Stories blockieren) und welche unabhängig sind, wird zusätzlich das in Jira eingebaute Priority-Feld gepflegt. Die Konvention:
+
+- **Highest:** Critical Path im aktuellen Sprint, Story blockiert mehrere andere. Wird zuerst gearbeitet.
+- **High:** Must im aktuellen Sprint, aber nicht blockierend für andere Stories. Auch Defer-Kandidaten (Should die im Sprint geplant sind aber als erste herausfallen wenn Scope-Cut nötig).
+- **Medium:** Must in einem späteren Sprint (Sprint 2/3/4), noch nicht aktiv.
+- **Low:** Should aus jedem Sprint.
+- **Lowest:** Could/Stretch, egal ob `sprint-stretch` oder `project-stretch`.
+
+Die Built-in Priority wird pro Story einmal initial gesetzt und bei Sprint-Refinement oder Scope-Anpassung bei Bedarf nachgezogen. Sie ist insbesondere im Sprint-Board nützlich, weil sie ein farbiges Icon erzeugt das beim ersten Blick zeigt was zuerst gemacht werden muss. Die konkrete Setz-Anleitung und das Mapping-Schema für Jira liegen in `10_jira_setup.md` Sektion 2.
+
+**Zusammenspiel der Achsen am Beispiel CRY-1 in Sprint 1:**
+
+- MoSCoW: `must` (Crypto-Facade ist Erfolgskriterium)
+- Sprint: `Sprint 1` (Foundation muss früh stehen)
+- Stretch: kein Label (kein Stretch)
+- Built-in Priority: `Highest` (blockiert AUT, TOK, SES, alle weiteren Crypto-Stories)
+
+Und am Beispiel APP-9 in Sprint 1:
+
+- MoSCoW: `must` (Mobile-App-UI ist Erfolgskriterium)
+- Sprint: `Sprint 1` (UI-Skelett früh ist sinnvoll)
+- Stretch: `sprint-stretch` (Sprint 1 ist überzeichnet, APP-Stories sind erste Cut-Kandidaten)
+- Built-in Priority: `Lowest` (Stretch innerhalb des Sprints, nicht blockierend)
 
 ### 1.4 Refinement-Stufe
 

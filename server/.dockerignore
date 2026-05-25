@@ -1,0 +1,30 @@
+# Build-Kontext schlank halten.
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+.coverage.*
+htmlcov/
+dist
+build
+*.egg-info
+
+# Editor- und OS-Stuff
+.idea
+.vscode
+*.swp
+.DS_Store
+Thumbs.db
+
+# Env und lokale Secrets gehoeren nicht in den Build-Kontext.
+.env
+.env.*
+!.env.example
+
+# Tests werden im Container nicht gebraucht (laufen extern).
+tests

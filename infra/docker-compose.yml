@@ -1,23 +1,22 @@
 # Implementing PQC - Docker Compose Skeleton
 # ------------------------------------------------------------------
-# Story: PQC-17 (INF-3) - Docker-Compose-Skeleton mit drei Services
+# Stories: PQC-17 (INF-3, Compose-Skeleton), PQC-19 (SKL-1, FastAPI-Skeleton)
 # Bezug: docs/07_design.md Abschnitt 3.1, docs/06_tech_stack.md Abschnitt 2.1
 #
 # Status Sprint 1:
-#   - Drei Services laufen (nginx Placeholder, auth-service Placeholder, redis).
+#   - Drei Services laufen: nginx (Placeholder, stock), auth-service (FastAPI), redis.
 #   - nginx ist stock nginx:1.27-alpine ohne TLS und ohne oqs-provider.
 #     Der Custom-Build mit OpenSSL 3.5 plus oqs-provider folgt in PQC-18 (INF-4).
-#   - auth-service ist ein Inline-Python-3.12-Placeholder, der einen Hello-Endpoint
-#     auf Port 8000 ausliefert. Das echte FastAPI-Skeleton kommt aus PQC-19 (SKL-1)
-#     und ersetzt dann das image plus command durch einen build-Kontext.
+#   - auth-service ist das echte FastAPI-Skeleton aus ../server mit /health-Endpoint
+#     und JSON-Logging. Folge-Stories (AUT, TOK, CRY, ...) bauen darauf auf.
 #   - Persistente Volumes auth-data und redis-data sind angelegt.
 #
 # Quickstart:
 #   cd infra
 #   cp .env.example .env
 #   docker compose up --build
-#   curl http://localhost:8080/             # nginx reverse proxy zum auth-service Placeholder
-#   curl http://localhost:8080/health       # liefert JSON vom Placeholder
+#   curl http://localhost:8080/health       # JSON vom FastAPI: {"status":"ok","version":"..."}
+#   curl http://localhost:8080/docs         # FastAPI Swagger-UI ueber nginx
 # ------------------------------------------------------------------
 
 name: pqc
@@ -50,58 +49,32 @@ services:
       start_period: 5s
 
   # ----------------------------------------------------------------
-  # auth-service - FastAPI (Placeholder bis SKL-1 abgeschlossen)
-  # Sprint 1: Inline-Python-Placeholder via command. SKL-1 (PQC-19)
-  # ersetzt image plus command durch build: ../server mit echtem Dockerfile.
+  # auth-service - FastAPI Skeleton (Story PQC-19 / SKL-1)
+  # Build-Kontext zeigt auf ../server, dort liegen Dockerfile, pyproject.toml,
+  # main.py, config.py, routers/health.py etc.
   # ----------------------------------------------------------------
   auth-service:
-    image: python:3.12-slim
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    image: rib-pqc-auth-service:dev
     container_name: pqc-auth-service
     restart: unless-stopped
-    working_dir: /app
     volumes:
       - auth-data:/data
     environment:
-      REDIS_URL: redis://redis:6379/0
-      SQLITE_PATH: /data/auth.sqlite
-      PLACEHOLDER_NOTE: "PQC-17 INF-3 placeholder. Wird durch PQC-19 SKL-1 ersetzt."
-    command:
-      - python
-      - -c
-      - |
-        import json, os
-        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-
-        BODY = {
-            "service": "auth-service",
-            "status": "placeholder",
-            "story": "PQC-17 INF-3",
-            "note": "Replaced by PQC-19 SKL-1",
-            "python": "3.12",
-            "env": {
-                "REDIS_URL": os.environ.get("REDIS_URL"),
-                "SQLITE_PATH": os.environ.get("SQLITE_PATH"),
-            },
-        }
-
-        class H(BaseHTTPRequestHandler):
-            def do_GET(self):
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps(BODY).encode())
-
-            def log_message(self, *args, **kwargs):
-                pass
-
-        print("auth-service placeholder listening on :8000", flush=True)
-        ThreadingHTTPServer(("", 8000), H).serve_forever()
+      # Settings-Override via Pydantic-Settings (Praefix RIB_).
+      RIB_REDIS_URL: redis://redis:6379/0
+      RIB_SQLITE_PATH: /data/auth.sqlite
+      RIB_LOG_LEVEL: info
+      RIB_ENVIRONMENT: dev
     depends_on:
       redis:
         condition: service_healthy
     networks:
       - pqc-net
     healthcheck:
+      # FastAPI /health-Endpoint (PQC-19 AC-3).
       test:
         - "CMD"
         - "python"
@@ -110,7 +83,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 5s
+      start_period: 10s
 
   # ----------------------------------------------------------------
   # redis - Session-Store

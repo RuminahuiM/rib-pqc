@@ -1,0 +1,18 @@
+[
+  "tests/test_registry.py::test_get_kem_unknown_raises",
+  "tests/test_registry.py::test_get_signature_unknown_raises",
+  "tests/test_registry.py::test_init_crypto_registry_idempotency_check_via_duplicate",
+  "tests/test_registry.py::test_init_crypto_registry_registers_configured_algorithms",
+  "tests/test_registry.py::test_init_crypto_registry_rejects_unknown_kem",
+  "tests/test_registry.py::test_init_crypto_registry_rejects_unknown_signature",
+  "tests/test_registry.py::test_init_crypto_registry_supports_multiple_algorithms",
+  "tests/test_registry.py::test_placeholder_kem_methods_raise_not_implemented",
+  "tests/test_registry.py::test_placeholder_kem_satisfies_kem_protocol",
+  "tests/test_registry.py::test_placeholder_signature_methods_raise_not_implemented",
+  "tests/test_registry.py::test_placeholder_signature_satisfies_signature_protocol",
+  "tests/test_registry.py::test_register_and_get_kem_happy_path",
+  "tests/test_registry.py::test_register_and_get_signature_happy_path",
+  "tests/test_registry.py::test_register_kem_duplicate_raises",
+  "tests/test_registry.py::test_register_signature_duplicate_raises",
+  "tests/test_registry.py::test_supported_kem_sorted"
+]

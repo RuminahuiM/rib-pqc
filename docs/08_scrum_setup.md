@@ -224,7 +224,30 @@ Die DoD ist eine **projektweite, storyunabhängige Qualitäts-Checkliste**, die 
 - Keine offenen kritischen Warnungen oder TODOs ohne Ticket im Code, die im Sprint-Scope liegen
 - Relevante Dokumentation ist aktualisiert (mindestens README, falls Konfigurations- oder Setup-Aspekte verändert wurden; passender Markdown-Artefakt, falls Architektur betroffen ist)
 - Quellen für nicht-trivialen Code oder fremde Snippets sind in `04_quellen.md` referenziert
-- Die Story ist in Jira auf "Done" gesetzt mit kurzer Done-Notiz (1 bis 3 Zeilen)
+- Evidence-File im aktuellen Sprint-Journal angelegt (siehe Evidence-Konvention unten)
+- Die Story ist in Jira auf "Done" gesetzt mit strukturiertem Done-Comment (Erledigt-Punkte, Abweichungen mit Begründung, Links zur Evidence-Datei und relevanten Commits)
+
+**Evidence-File-Konvention (etabliert mit PQC-17 in Sprint 1, gilt ab Sprint 1):**
+
+Pro Story wird ein Evidence-Markdown im Pfad `sprint_journal/sprint_<n>/evidence/<JIRA-KEY>_<STORY-ID>_<kurze-bezeichnung>.md` abgelegt. Inhalt mindestens: AC-Check (welcher AC durch welchen Output erfüllt), getroffene Architektur-Entscheidungen, bewusste Abweichungen mit Begründung, Verifikations-Output (Logs, `docker compose ps`-Output, Test-Result, Screenshots). Der Jira-Done-Comment enthält einen Relative-Link auf diese Evidence-Datei. Begründung: Mentor und Bewertung müssen nachvollziehbar prüfen können was tatsächlich geliefert wurde und warum von der Story-Spec abgewichen wurde, ohne dass dafür ein Code-Walkthrough nötig ist. Die Done-Notiz im Jira allein ist zu kurz dafür.
+
+**Done-Comment-Struktur in Jira (etabliert in Sprint 0):**
+
+```
+**Done Note (TT.MM.JJJJ)**
+
+Erledigt:
+- <Punkt 1>
+- <Punkt 2>
+
+Abweichungen von den ACs:
+- <Welches AC nicht 1:1 umgesetzt, mit Begründung>
+
+Links:
+- <Evidence-File-Pfad, Commit-Hashes, Doku-Pfade>
+```
+
+Sektionen "Abweichungen" und "Links" können weggelassen werden wenn nicht zutreffend; "Erledigt" ist Pflicht.
 
 ---
 
@@ -285,10 +308,29 @@ Stories werden nicht nachträglich umgeschätzt, auch wenn sie sich als grösser
 **Konsequenzen:**
 
 - **Schätzungen werden nicht angepasst.** Sie bleiben "ohne AI" stehen.
-- **Tatsächliche Arbeitszeit wird pro Story und pro Sprint dokumentiert** (im Sprint-Review-Template Section 6 Velocity, plus Daily Journal "Arbeitszeit").
+- **Tatsächliche Arbeitszeit wird pro Story und pro Sprint dokumentiert** (siehe Zeit-Tracking-Methode unten).
 - **Vergleich am Projekt-Ende:** Geschätzte vs. tatsächliche Arbeitszeit erlaubt eine empirische Messung des AI-Multipliers für dieses konkrete Projekt. Diese Auswertung fliesst in den Reflexions-Teil des Schlussberichts.
 - **Bei Sprint-Planning** wird berücksichtigt, dass die nominal "über-allokierte" Sprint-Last (z.B. Sprint 1 mit 41 SP vs. 20-25 SP klassischer Kapazität) durch den AI-Multiplier auf etwa 30-37 SP effektive Kapazität pro Sprint erweitert wird. Damit ist die Planung enger aber nicht unrealistisch.
 - **Risiko:** Falls der AI-Multiplier in der Praxis unter 1.5x ausfällt (z.B. bei subtilen Crypto-Bugs, wo AI weniger hilft als bei Boilerplate), greift die Stretch-Goal-Streichung (siehe `11_risk_register.md` R-S01).
+
+**Zeit-Tracking-Methode (etabliert ab Sprint 1):**
+
+Pro abgeschlossener Story werden zwei Stellen gepflegt:
+
+1. **Tabelle "Zeit-Tracking pro Story" im Daily Journal des Sprints.** Spalten: Story-Key, T-Shirt-Size, Story Points (ohne AI), tatsächliche Zeit (Minuten oder Stunden), berechneter Multiplier (Schätzung in h geteilt durch tatsächliche Zeit in h), Notiz mit Kontext (Carry-Over, Recherche-lastig, blocker, neue Library etc.). Wird beim Sprint Review aggregiert.
+2. **Jira Worklog auf der jeweiligen Story** via `addWorklogToJiraIssue` mit `timeSpent` (z.B. `40m`, `2h`, `1h30m`) und kurzem Kontext-Kommentar. Macht die Daten mentor-sichtbar und export-fähig.
+
+**Schätzung-in-Stunden-Mapping (Mittel des T-Shirt-Ranges für die Multiplier-Berechnung):**
+
+| T-Shirt | SP | Klassisch Mittel-h | Beispiel-Multiplier-Berechnung |
+|---|---|---|---|
+| XS | 1 | 1.0 h | tatsächlich 30 Min: Multiplier 2.0x |
+| S | 2 | 3.0 h | tatsächlich 1h: Multiplier 3.0x |
+| M | 5 | 7.0 h | tatsächlich 2h: Multiplier 3.5x |
+| L | 8 | 15.0 h | tatsächlich 5h: Multiplier 3.0x |
+| XL | 13 | 25.0 h | (XL ist Signal zum Zerlegen) |
+
+Bei der Auswertung im Schlussbericht wird zusätzlich nach Story-Typ aufgeschlüsselt (Crypto-Logik vs. Infrastructure-Setup vs. UI-Implementation vs. Doku), weil der AI-Multiplier vermutlich nach Typ stark variiert.
 
 ---
 

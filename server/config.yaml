@@ -1,0 +1,47 @@
+# Default-Konfiguration fuer den Auth-Service (Stories PQC-19 / SKL-1 und PQC-21 / CRY-1).
+#
+# Diese YAML-Datei ist nicht-geheim und liegt im Repo. Geheime Werte (z.B.
+# OIDC Client Secrets) gehoeren in eine .env-Datei und werden via Environment
+# geladen. Pro Tech-Stack-Doku Abschnitt 2.5.
+#
+# Override-Reihenfolge (von schwach nach stark):
+#   1. Defaults in config.py (Pydantic-Default-Werte)
+#   2. Werte aus dieser YAML-Datei
+#   3. Werte aus .env-Datei
+#   4. Environment-Variablen
+#
+# Spaetere Sprint-Stories fuegen hier weitere Sections hinzu, z.B.:
+#   idp_providers.google, idp_providers.microsoft (Sprint 2 Broker-Stories)
+
+app_name: "rib-pqc-auth-service"
+version: "0.1.0"
+environment: "dev"
+
+# HTTP-Server (uvicorn). Container-internen Port 8000 nicht aendern, der nginx
+# Upstream in infra/nginx/nginx.conf verweist explizit auf auth-service:8000.
+host: "0.0.0.0"
+port: 8000
+
+# Logging (Story PQC-19 AC-5). Wertebereich: debug, info, warning, error, critical.
+log_level: "info"
+
+# Datenspeicher. Pfade gelten innerhalb des Containers, ueber die Volumes
+# auth-data und redis-data persistiert. Werden in spaeteren Sprint-Stories
+# tatsaechlich verwendet (AUT-1 fuer SQLite, Session-Stories fuer Redis).
+sqlite_path: "/data/auth.sqlite"
+redis_url: "redis://redis:6379/0"
+
+# Crypto-Algorithmus-Registry (Story PQC-21 / CRY-1, AC-4).
+# Pro Algorithmus-Klasse sind 'supported' die registrierten Plugins,
+# 'default' der Standard-Algorithmus fuer Operationen ohne explizite Wahl.
+# Mit der Crypto-Agility-Architektur ist ein Wechsel des default-Algorithmus
+# eine reine Config-Aenderung, kein Code-Eingriff.
+crypto:
+  kem:
+    supported:
+      - "ML-KEM-768"
+    default: "ML-KEM-768"
+  signature:
+    supported:
+      - "ML-DSA-65"
+    default: "ML-DSA-65"
