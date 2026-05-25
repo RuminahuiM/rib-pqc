@@ -6,73 +6,61 @@
 
 ---
 
-## Post-Text (zum Kopieren in MS Teams)
+## Post-Text (versendet am 24.05.2026)
 
 **Erstes Status-Update Semesterarbeit "Implementing PQC"**
 
-Liebe Experten
+Hallo zusammen
 
-Entschuldigt das späte erste Update, ich hole das hiermit nach. Hier mein aktueller Stand.
+Sorry, dass das erste Update so spät kommt. Leider habe ich für die Planung etwas länger gebraucht als gedacht. Hier mein aktueller Stand.
 
-**Projekt-Setup abgeschlossen (Sprint 0, 06.05 bis 24.05.2026)**
+**Was in Sprint 0 (06.05 bis 24.05) passiert ist**
 
-Sprint 0 habe ich als Setup- und Konzeptions-Phase genutzt. Folgende Deliverables sind fertig dokumentiert:
+Diese Phase habe ich für Recherche und Planung genutzt. Im Einreichungsformular war noch keine OIDC-Integration geplant. Während der Recherche habe ich aber gemerkt, dass ich dem Projekt einen höheren Wiederverwendbarkeitswert geben möchte, also dass es einer realen Anwendung näher kommt und nicht nur ein reines Lern-Beispiel bleibt.
 
-- Architektur-Entscheidung mit Begründung (Option 2: Custom Auth Service plus Identity-Broker-Pattern, "PQ-Uplift")
-- Vollständige Requirements (Use Cases, Functional und Non-Functional Requirements, Traceability-Matrix)
-- System-Design mit Komponenten-, Deployment- und Sequenz-Diagrammen
-- Tech-Stack mit Versions-Pinning (FastAPI plus liboqs-python serverseitig, React Native Expo plus @noble/post-quantum clientseitig, nginx mit oqs-provider für hybrid TLS)
-- Scrum-Setup mit Solo-Adaption
-- Product Backlog (13 Epics, 63 Stories) komplett in Jira angelegt mit Story Points und Sprint-Zuweisung
-- Risk Register mit 19 identifizierten Risiken und Mitigation/Contingency-Plänen
-- Sprint-Journal mit Templates, Sprint-0-Review und -Retrospektive
+Zuerst dachte ich, ich baue dafür selbst einen OIDC-Provider. Habe dann aber relativ schnell gemerkt, das macht eigentlich keinen Sinn, weil es schon genug grosse Anbieter wie Google oder Microsoft gibt und kaum jemand einen weiteren OIDC-Provider braucht. Durch weitere Recherche bin ich auf das Identity-Broker-Pattern gestossen, das in der Industrie auch so eingesetzt wird. Ich habe drei Varianten gegeneinander abgewogen:
 
-**Scope-Anpassung und Optionen-Wahl**
+1. **Eigener Full OIDC Provider mit PQ-Signaturen.** Etwa 70 bis 80 Prozent des Codes wäre OIDC-Boilerplate, nur ein kleiner Teil wirklich PQC. Praktischer Nutzen gering, weil die grossen Anbieter den Markt eh abdecken. Aufwand über 100 Stunden, zu viel für meinen Zeitrahmen.
+2. **Identity Broker mit "PQ-Uplift" (gewählt).** Mein eigener Auth-Service stellt PQ-signierte Tokens aus. Google und Microsoft werden weiter für die Anmeldung selbst genutzt (klassisch, weil sie 2026 noch nichts anderes anbieten), aber ab dem Token läuft alles post-quantum: ML-DSA-65 für die Signatur, ML-KEM-768 für die Session-Keys, AES-256-GCM für die Payloads. Damit ist etwa 60 Prozent des Codes wirklich PQC, das Pattern entspricht der gängigen Industrie-Praxis, der Aufwand passt in den Plan und das Projekt fühlt sich nicht weiter aufgebläht an.
+3. **Reines Anwendungs-Beispiel gemäss Einreichungsformular.** Schien für mich mehr ein Fallbeispiel als ein wirklich brauchbares Endprodukt zu erzeugen.
 
-In den ersten Tagen von Sprint 0 habe ich vertiefte Recherche zu NIST-PQC-Standards (FIPS 203, 204), zur Reife der relevanten Libraries (liboqs, @noble/post-quantum) und zu den Mobile-OS-Limitationen rund um TLS-Konfiguration durchgeführt. Dabei wurde mir klar, dass der initial angedachte Scope (klassisches OIDC mit aufgesetzter PQ-Signatur) zu wenig PQC-Substanz für eine Semesterarbeit mit dem Titel "Implementing PQC" liefern würde. Daraufhin habe ich drei Architektur-Optionen ausgearbeitet und bewertet:
+Fertig dokumentiert sind in Sprint 0: Architektur-Entscheidung mit Begründung, Anforderungen, System-Design, Tech-Stack, Scrum-Setup mit Solo-Adaption, Product Backlog (13 Epics, 63 Stories in Jira), Risk Register und Traceability-Matrix.
 
-- **Option 1 (Full OIDC Provider):** Vollständige OIDC-Provider-Implementation mit PQ-Token-Signaturen. Pro: standards-konform, breit einsetzbar. Contra: ~70-80% des Codes wäre OIDC-Boilerplate (Discovery-Endpoints, JWKS, Token-Endpoints, Consent-Screens), nur ~20% wären PQC-spezifisch. Geschätzter Aufwand 100-140h, Sprint-Crunch-Risiko zu hoch.
-- **Option 2 (Custom Auth Service mit Identity-Broker, "PQ-Uplift"):** Eigenes Token-Format mit ML-DSA-65-Signatur, externe IdPs (Google, Microsoft) liefern Pre-Authentication, dann durchgehende PQ-Sphäre (ML-KEM-768 Session, AES-256-GCM Payload). Pro: ~60% des Codes ist PQC-spezifisch. Vertikale Tiefe (eine App, alle Layer post-quantum). Aufwand 70-100h, im Rahmen. Demonstriert ehrlich die realistische Übergangs-Architektur 2026. Contra: nicht voll standards-konform, Pre-Authentication-Teil mit Google/Microsoft bleibt klassisch (RS256), das wird im Bericht transparent als Limitation benannt.
-- **Option 3 (OIDC-Lite):** Vereinfachter OIDC-Provider ohne volle Standards-Konformität. Mittelweg. Contra: zwischen den Stühlen, Komplexität von OIDC ohne klaren Standards-Vorteil, verwässert die Botschaft.
+**Hinweis zur Arbeitsweise**
 
-**Entscheidung Option 2.** Begründung: Der Projekttitel verlangt Tiefe in PQC, nicht Breite in OIDC. Option 2 maximiert den PQC-Anteil im Code und passt zeitlich in den verfügbaren Rahmen (Solo-Aufwand ca. 10-15h/Woche plus AI-Unterstützung als Multiplier). Der Identity-Broker-Pattern (klassische OIDC-Provider für Pre-Authentication, eigener Auth-Service für die PQ-Sphäre) wird im Bericht als "PQ-Uplift" beschrieben, also als realistische Übergangs-Architektur für die Phase 2026-2030, in der externe IdPs noch klassisch arbeiten.
+Ich arbeite stark mit AI-Unterstützung (Claude). Die bisherigen Dokumente sind in stark kontrollierter Zusammenarbeit entstanden, also kein generischer AI-Output, sondern jeder Schritt bewusst geprüft und gesteuert. Auf mein konkretes Vorgehen mit AI inklusive Lehren und Limitationen werde ich in der finalen Projekt-Dokumentation eingehen.
 
-Diese Entscheidung wurde am 08.05.2026 mit dem Dozenten besprochen und bestätigt. Das eingereichte Thema bleibt unverändert ("Implementing PQC"), kein Form-Wechsel nötig.
+**Sprint 1 (24.05 bis 31.05) läuft seit heute**
 
-**Architektur in einem Satz**
+Ziel: FastAPI- und Expo-Skeletons stehen, plus lokaler Login mit ML-DSA-signiertem Broker-Token. Dazu Carry-Over aus Sprint 0: Docker-Compose-Setup und oqs-fähiges nginx-Image.
 
-Mobile-App (React Native Expo) plus Auth-Service (FastAPI hinter nginx). Externe IdPs (Google, Microsoft) für Pre-Authentication via klassisches OIDC. Anschliessend PQ-signierter Broker-Token (ML-DSA-65), App-Layer-Session via ML-KEM-768-Encapsulation, Payload-Verschlüsselung via AES-256-GCM. Crypto-Abstraction-Layer als Plugin-Registry für Algorithmen-Austauschbarkeit (Crypto-Agility).
+**Zwischengespräch am 01.06, gerne besprechen würde ich:**
 
-**Sprint 1 (25.05 bis 31.05.2026)**
+- Architektur-Review
+- Demo vom Sprint-1-Code, soweit bis dahin steht
 
-Sprint-Ziel: FastAPI- und Expo-Skeletons stehen, lokaler Login End-to-End mit ML-DSA-65-signiertem Broker-Token. Plus Carry-Over aus Sprint 0: GitHub-Repo final aufsetzen, Docker-Compose, oqs-provider-fähiges nginx-Image.
+**Zugriff für euch:**
 
-**Mentor-Termin Nr. 1 am 01.06.2026, was ich gerne diskutieren würde**
+- GitHub-Repo: https://github.com/RuminahuiM/rib-pqc. Wichtig: das Repo dient mir als zentrale Ablage für alle Projekt-Daten (Doku, Code, Sprint-Journal, etc.), weil das die Arbeit mit AI deutlich vereinfacht. Es ist nicht die finale Projekt-Dokumentation, die werde ich später mit dem Portfolio-Template aus dem letzten Semester aufsetzen. Aktuelle Struktur:
+  - `docs/` hat alle Projekt-Dokumente
+  - `sprint_journal/` hat Sprint-Reviews und Retros
+  - `tbz_resources/` hat die TBZ-Vorgaben (damit Claude diese nachschauen kann)
+  - `server/`, `app/`, `infra/`, `scripts/` sind aktuell leer und kommen mit Sprint 1
+  - `README.md` am Top-Level als Wegweiser
+- Jira-Projekt: https://rumidesigns.atlassian.net/jira/software/projects/PQC/backlog.
 
-- Architektur-Review aus eurer Sicht, insbesondere die Identity-Broker-Entscheidung und die ehrliche Limitation des klassischen Pre-Auth-Teils
-- PQC-Fragen: Bestätigung der ML-KEM-768 und ML-DSA-65 Anwendung und Parameter-Wahl gemäss FIPS 203 / 204
-- Sprint-1-Code-Demo (was bis dahin steht)
-- Prozess-Fragen zur Solo-Scrum-Anwendung
+Ihr solltet bereits Einladungen für die Zugriffe per E-Mail erhalten haben. Falls irgendwas nicht funktioniert, gebt mir bitte eine kurze Rückmeldung.
 
-**Zugriff für euch**
-
-- Jira-Projekt: https://rumidesigns.atlassian.net/jira/software/projects/PQC/backlog. Für Read-Access bitte ich um eure Atlassian-Account-Emails, dann lade ich euch ein.
-- GitHub-Repository: ist angelegt, ich richte in den nächsten Tagen den finalen Setup und euren Zugriff ein. Link folgt sobald bereit.
-- Die Markdown-Dokumente (Requirements, Design, Scrum-Setup, Risk Register, etc.) kann ich euch gerne als Bundle teilen, sagt mir welches Format euch passt (Direkt-Links oder PDF-Export).
-
-Bei Fragen oder Anmerkungen vorab gerne Bescheid geben, sonst freue ich mich auf den Termin am 01.06.
-
-Beste Grüsse
-Dodoe Mannale
+Grüsse Dodoe
 
 ---
 
 ## Hinweise zum Versenden
 
-- Vor dem Posten prüfen: Atlassian-Workspace `rumidesigns` ist öffentlich genug, dass Mentoren auch ohne Einladung den Backlog ansehen können (oder im Workspace-Settings öffentlich für Read).
-- Wenn Mentoren-Emails bekannt sind: Atlassian "Invite people" Funktion nutzen, Role "Member" (Free-Tier-Limit 10 User ist nicht überschritten).
-- Falls keine Atlassian-Accounts gewünscht: PDF-Export aus Jira via "..." Menü > "Export issues" als Backup.
-- GitHub-Setup: Repo entweder privat mit Mentoren-Einladung, oder public mit klarer LICENSE.
+- Vor dem Posten prüfen: GitHub-Repo `rib-pqc` ist gepusht (`git push -u origin main`) und entweder public oder mit Mentor-Zugriff (Settings > Collaborators).
+- Atlassian-Workspace `rumidesigns`: prüfen ob Backlog public-read ist oder ob Einladungen nötig sind.
+- Wenn Mentoren-Emails bekannt sind: Atlassian "Invite people" Funktion nutzen, Role "Member" (Free-Tier-Limit 10 User ist nicht überschritten). Für GitHub: Repo-Settings > Manage access.
+- Falls keine Atlassian-Accounts gewünscht: CSV-Export aus Jira via "..." Menü > "Export issues" als Backup.
 - Nach dem Posten: Mentoren-Reaktion in Sprint-1-Daily-Journal als Erwähnung tracken, im Risk Register R-S05 (externe Abhängigkeiten) ggf. Status updaten.
 
 ## Format-Vorlage für zukünftige Updates
