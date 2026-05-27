@@ -82,7 +82,7 @@ schon abgedeckt). 7 Tier-2-Findings, 1 davon noch in der Story selbst gefixt.
 | ID | Titel | Severity | Trigger | Status |
 |---|---|---|---|---|
 | F-014 | Secret Key lebt als bytes-Objekt im Python-Memory ueber Service-Lifetime | Should | vor produktiver Demo, Bericht-Limitation | open (Pure-Python-Limitation, im Bericht erwaehnen) |
-| F-015 | LibOqsSignature.verify faengt zu breit (except Exception -> False) | Info | bei naechstem Touch von liboqs_signature.py | open (inline TODO empfohlen) |
+| F-015 | LibOqsSignature.verify faengt zu breit (except Exception -> False) | Info | bei naechstem Touch von liboqs_signature.py | resolved (PQC-22, eng auf (RuntimeError, ValueError) eingegrenzt) |
 | F-016 | Dev-Setup-Doku: liboqs-python braucht Internet beim ersten Import | Info | Sprint 4 Doku-Polish | open |
 | F-017 | Docker-Image enthaelt Build-Tools (gcc, cmake, ninja-build, git, libssl-dev) im Runtime | May | Sprint 4, Multi-Stage-Build mit Bericht-Gewinn | open |
 | F-018 | liboqs C-Source-Download im Build nicht hash-gepinnt (Supply-Chain-Reproducibility) | May | Sprint 4, vor Bericht-Abgabe | open |
@@ -95,3 +95,31 @@ Findings F-014 bis F-019 plus K-3-Resolution aus dem Senior-Closing-Review von
 PQC-25 (CRY-5) ergaenzt. R-T01 (Risk Register) ist durch PQC-25 erfolgreich
 gemitigated, sollte vom Co-SM-Chat im Risk Register entsprechend dokumentiert
 werden.
+
+
+
+## Findings aus PQC-22 (CRY-2) Code-Review am 27.05.2026
+
+Story war ein Skeleton-Sprint mit klar definierten AC. Im Closing-Review nur
+ein neues Finding plus ein bestehendes geloest.
+
+### Tier-2 (Polish, Code-Hygiene, keine eigene Story)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-020 | CryptoFacade.sign purpose-Parameter wird Sprint 1 nur geloggt, nicht semantisch verarbeitet | Info | wenn zweiter sign-Use-Case (z.B. Session-Handshake) oder Keys-pro-Purpose noetig | open (in Doku festgehalten, Facade-API tauglich fuer Erweiterung) |
+| F-021 | CryptoFacade.sign/verify loggen jeden Call auf INFO-Level | Should | vor PQC-30 oder vor produktiver Demo, wenn Token-Flow hochfrequent wird | open (auf DEBUG-Level oder Sampling reduzieren) |
+| F-022 | crypto.facade.verify loggt result True/False pro Call (Side-Channel-Concern via Log-Aggregator) | Info | vor produktiver Demo, mit F-021 zusammen abhandeln | open |
+| F-023 | Single-kid-Setup, Multi-Key-Pflege fuer Key-Rotation noch nicht implementiert | Info | Sprint 3 Polish, oder bei JWKS-Endpoint-Bedarf | open |
+| F-024 | app.state.crypto_facade ist untyped; FastAPI-Dependency-Helper waere type-safer | Info | bei PQC-30 (AUT-3) wenn erster Endpoint die Facade nutzt | open |
+| F-015 (war Info) | LibOqsSignature.verify faengt zu breit | Info | bei naechstem Touch | resolved (PQC-22, siehe oben) |
+
+### Historie-Update 27.05.2026
+
+PQC-22 Closing-Review: F-015 in der Story selbst geloest (Exception-Klausel
+eingegrenzt). Vier neue Tier-2-Findings F-020 bis F-024:
+- F-020: purpose-Parameter funktional inaktiv in Sprint 1
+- F-021: Log-Frequency auf sign/verify (Should, vor PQC-30)
+- F-022: verify-result-Logging (Info, mit F-021 zusammen)
+- F-023: Multi-Kid-Rotation (Sprint 3 Polish)
+- F-024: Typed app.state-Helper (bei PQC-30)

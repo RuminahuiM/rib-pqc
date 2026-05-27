@@ -86,13 +86,15 @@ class LibOqsSignature:
         """
         import oqs
 
-        # TODO(F-015): Exception-Klasse einengen. Aktuell faengt das alles ab,
-        # was liboqs werfen koennte; klarer waere nur Format-/Decoding-Errors zu
-        # fangen und echte Crashes nach aussen weiterzureichen. Siehe
-        # docs/13_deferred_findings.md (F-015).
+        # F-015 resolved in PQC-22: enge Exception-Klausel. liboqs wirft
+        # RuntimeError bei ungueltigen Signatur-/Key-Inputs (z.B. falsche
+        # Laenge, malformed bytes). ValueError kann bei Python-Level-Checks
+        # auftreten. Beides bedeutet "Signatur ungueltig". Programmer-Bugs
+        # (TypeError, AttributeError etc.) sollen propagieren statt unter
+        # `return False` versteckt zu werden.
         try:
             with oqs.Signature(self._algorithm) as verifier:
                 result: bool = verifier.verify(message, signature, public_key)
-        except Exception:
+        except (RuntimeError, ValueError):
             return False
         return bool(result)

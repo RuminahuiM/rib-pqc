@@ -135,8 +135,9 @@ Die Story-Points und T-Shirt-Sizes in diesem Backlog sind als **klassische Solo-
 | QUA | Quality (Tests und Benchmarks) | NFR-Perf-1 bis NFR-Perf-3, NFR-Maint-1 | 8 |
 | DOC | Documentation und Reporting | Bewertungs-Kriterium 1 bis 4, Abgabe-Pflicht | 4 |
 | STR | Stretch Goals | FR-Crypto-4, NFR-Sec-6, optionale Items | 3 |
+| SEC | Security Infrastructure (nachträglich aus PQC-19 Closing-Review) | NFR-Sec-3 (Web-Security-Baseline) | 5 |
 
-**Total Stories:** 63
+**Total Stories:** 68 (63 initial plus 5 SEC-Stories nachträglich aus Sprint-1-Reviews)
 
 ---
 
@@ -146,7 +147,7 @@ Die Story-Points und T-Shirt-Sizes in diesem Backlog sind als **klassische Solo-
 |---|---|---|---|
 | Sprint 0 | 06.05 bis 24.05 | INF (Setup, Recherche, Dokumente) | INF-1, INF-2, INF-3, INF-4 |
 | Sprint 1 | 25.05 bis 31.05 | SKL + CRY (Foundation) + AUT + TOK | SKL-1, SKL-2, CRY-1, CRY-2 (partial), CRY-5, AUT-1, AUT-2, AUT-3, AUT-4, TOK-1, TOK-2, APP-1, APP-4, APP-9, QUA-1, QUA-2, QUA-3 |
-| Sprint 2 | 01.06 bis 14.06 | BRK + TLS + Federation-Integration | BRK-1, BRK-2, BRK-3, BRK-4, BRK-5, BRK-6, BRK-7, TLS-1, TLS-2, TLS-3, APP-7, APP-8 |
+| Sprint 2 | 01.06 bis 14.06 | BRK + TLS + Federation-Integration + SEC | BRK-1, BRK-2, BRK-3, BRK-4, BRK-5, BRK-6, BRK-7, TLS-1, TLS-2, TLS-3, APP-7, APP-8, SEC-1, SEC-2, SEC-3, SEC-4, SEC-5 |
 | Sprint 3 | 15.06 bis 28.06 | SES + DCH + Client-Crypto + Algorithmus-Demo | CRY-3, CRY-4, CRY-6, CRY-7, SES-1, SES-2, SES-3, SES-4, DCH-1, DCH-2, DCH-3, DCH-4, APP-2, APP-3, APP-5, APP-6, QUA-4, QUA-5 |
 | Sprint 4 | 29.06 bis 05.07 | DOC + Benchmarks + Polish | TOK-3, TOK-4, DOC-1, DOC-2, DOC-3, DOC-4, QUA-6, QUA-7, QUA-8 |
 | Stretch | nach Slack | STR | STR-1, STR-2, STR-3 |
@@ -1277,13 +1278,95 @@ Items, die nur bei freiem Slack angegangen werden. Nicht für Sprint 1 bis 3 zug
 
 ---
 
+### Epic SEC: Security Infrastructure (nachträglich angelegt)
+
+Diese fünf Stories sind aus dem Senior-Closing-Review von PQC-19 (SKL-1) am 25.05.2026 entstanden. Es handelt sich um Tier-1-Findings die zu Sprint-2-Material aufgewertet wurden, weil sie eine ordentliche Web-Security-Baseline für das FastAPI-Backend bilden. Alle fünf Stories sind Voraussetzung für PQC-30 (AUT-3 Login-Endpoint) und haben deshalb `blocks PQC-30` Issue-Links im Jira. Volle Akzeptanzkriterien stehen in den jeweiligen Jira-Stories, das vollständige Refinement passiert im Sprint-2-Planning. Bezug: NFR-Sec-3 (Web-Security-Baseline aus `05_requirements.md`).
+
+#### SEC-1: Request-ID Middleware
+
+- **Epic:** SEC
+- **Jira-Key:** PQC-79
+- **Bezug:** NFR-Sec-3, Folge aus PQC-19 Senior-Closing-Review (Finding tier-1)
+- **Priorität:** Must
+- **T-Shirt:** S | **Story Points:** 2 | **Sprint:** 2
+
+**Summary-AC (Refinement im Sprint 2 Planning):**
+
+- ASGI-Middleware fügt pro Request eine Request-ID (UUID) hinzu.
+- ID ist im Response-Header `X-Request-ID` und in allen structlog-Log-Lines des Requests vorhanden.
+- Volle ACs in Jira-Story PQC-79.
+
+---
+
+#### SEC-2: CORS-Middleware
+
+- **Epic:** SEC
+- **Jira-Key:** PQC-80
+- **Bezug:** NFR-Sec-3, Folge aus PQC-19 Senior-Closing-Review
+- **Priorität:** Must
+- **T-Shirt:** S | **Story Points:** 2 | **Sprint:** 2
+
+**Summary-AC (Refinement im Sprint 2 Planning):**
+
+- FastAPI CORSMiddleware konfiguriert mit explicit allow-list (App-Origin, Dev-Localhost).
+- Volle ACs in Jira-Story PQC-80.
+
+---
+
+#### SEC-3: TrustedHost-Middleware
+
+- **Epic:** SEC
+- **Jira-Key:** PQC-81
+- **Bezug:** NFR-Sec-3, Folge aus PQC-19 Senior-Closing-Review
+- **Priorität:** Must
+- **T-Shirt:** XS | **Story Points:** 1 | **Sprint:** 2
+
+**Summary-AC (Refinement im Sprint 2 Planning):**
+
+- TrustedHostMiddleware schützt vor Host-Header-Injection.
+- Konfiguration über Settings.
+- Volle ACs in Jira-Story PQC-81.
+
+---
+
+#### SEC-4: Security-Headers
+
+- **Epic:** SEC
+- **Jira-Key:** PQC-82
+- **Bezug:** NFR-Sec-3, Folge aus PQC-19 Senior-Closing-Review
+- **Priorität:** Must
+- **T-Shirt:** S | **Story Points:** 2 | **Sprint:** 2
+
+**Summary-AC (Refinement im Sprint 2 Planning):**
+
+- Standard-Security-Headers in jeder Response (HSTS, X-Content-Type-Options, Referrer-Policy, X-Frame-Options, CSP-Skelett).
+- Volle ACs in Jira-Story PQC-82.
+
+---
+
+#### SEC-5: Rate-Limiting
+
+- **Epic:** SEC
+- **Jira-Key:** PQC-83
+- **Bezug:** NFR-Sec-3, Folge aus PQC-19 Senior-Closing-Review
+- **Priorität:** Must
+- **T-Shirt:** S | **Story Points:** 3 | **Sprint:** 2
+
+**Summary-AC (Refinement im Sprint 2 Planning):**
+
+- IP-basiertes Rate-Limit auf Auth-Endpoints, mit Bucket über Redis oder In-Memory.
+- 429 Response bei Überschreitung.
+- Volle ACs in Jira-Story PQC-83.
+
+---
+
 ## 5. Story-Points-Übersicht pro Sprint
 
 | Sprint | Must-Stories (SP) | Should/Could-Stories (SP) | Total SP geplant | Realistische Kapazität (SP) |
 |---|---|---|---|---|
 | Sprint 0 | INF-1 bis INF-4 = 14 | --- | 14 | 14 (rückblickend, Sprint läuft aus) |
 | Sprint 1 | SKL+CRY+AUT+TOK Must Cluster = ca. 41 | 0 | 41 | ca. 20 bis 25 |
-| Sprint 2 | BRK + TLS + APP Federation = ca. 47 | 0 | 47 | ca. 25 bis 30 |
+| Sprint 2 | BRK + TLS + APP Federation = ca. 47, plus SEC = 10 | 0 | 57 | ca. 25 bis 30 |
 | Sprint 3 | SES + DCH + APP Rest + CRY-3/4/6/7 = ca. 60 | SES-4 (3) | 63 | ca. 25 bis 30 |
 | Sprint 4 | DOC-1, DOC-2, DOC-3, QUA-6/7/8 = ca. 29 | TOK-3, TOK-4, DOC-4 (10) | 39 | ca. 12 bis 15 |
 | Stretch | --- | STR-1, STR-2, STR-3 = 18 | --- | --- |
@@ -1300,10 +1383,10 @@ Items, die nur bei freiem Slack angegangen werden. Nicht für Sprint 1 bis 3 zug
 
 | Priorität | Anzahl Stories | Story Points (Summe) |
 |---|---|---|
-| Must | 53 | ca. 200 |
+| Must | 58 | ca. 210 |
 | Should | 7 | ca. 22 |
 | Could | 3 | 18 |
-| **Total** | **63** | **ca. 240** |
+| **Total** | **68** | **ca. 250** |
 
 Die hohe Must-Quote spiegelt die enge Verzahnung der Architektur-Komponenten wider. Wenn ein Must-Item gestrichen werden muss, ist es voraussichtlich aus dem App-Polish-Bereich (z.B. visuelles Layout, Profile-Screen-Detail).
 
@@ -1314,3 +1397,4 @@ Die hohe Must-Quote spiegelt die enge Verzahnung der Architektur-Komponenten wid
 | Version | Datum | Änderung |
 |---|---|---|
 | 1.0 | 17.05.2026 | Initial-Version. 13 Epics mit 63 Stories. Volle Akzeptanzkriterien für Sprint-0- bis Sprint-2-Stories, Summary-AC für Sprint-3- und Sprint-4-Stories. MoSCoW-Priorisierung. Sprint-Allokation mit SM-Warnung zur Kapazitäts-Über-Allokation. |
+| 1.1 | 27.05.2026 | Priorisierungs-Konvention erweitert (4-Achsen-Modell mit Built-in-Priority-Field, Sektion 1.3). Epic SEC nachträglich angelegt (PQC-78) mit 5 Stories SEC-1 bis SEC-5 (PQC-79 bis PQC-83), aus PQC-19 Senior-Closing-Review als Tier-1-Findings. Total jetzt 14 Epics mit 68 Stories. Sprint 2 SP-Last von 47 auf 57 erhöht. |

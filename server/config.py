@@ -113,6 +113,12 @@ class SignatureConfig(BaseModel):
     # Service wuerde trotzdem hart scheitern wenn kein vorgenerierter Key da
     # ist und allow_autogen_in_dev nicht explizit gesetzt wurde.
     allow_autogen_in_dev: bool = Field(default=False)
+    # PQC-22 (CRY-2): kid (Key Identifier) den die CryptoFacade in
+    # ``sign()``-Antworten zurueckliefert und in ``verify()`` per Lookup zum
+    # Public Key aufloest. Sprint 1 hat genau einen Signing-Key, deshalb ein
+    # konfigurierbarer String. Spaeter koennten mehrere kids parallel gepflegt
+    # werden (Key-Rotation), das waere ein Sprint-3-Polish-Thema.
+    signing_kid: str = Field(default="auth-signing-key-v1")
 
 
 class CryptoConfig(BaseModel):

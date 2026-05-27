@@ -31,6 +31,7 @@ from fastapi import FastAPI
 
 from config import get_settings
 from crypto import keys
+from crypto.facade import CryptoFacade
 from crypto.registry import CryptoRegistry
 from crypto.registry_init import init_crypto_registry
 from logging_config import get_logger, setup_logging
@@ -167,9 +168,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         allow_autogen_in_dev=settings.crypto.signature.allow_autogen_in_dev,
     )
 
+    # CryptoFacade als zentraler Einstiegspunkt fuer alle Crypto-Operationen
+    # in nachfolgenden Stories (TOK-1 Broker-Token, AUT-3 Login, etc.).
+    facade = CryptoFacade(
+        registry=registry,
+        default_signature_alg=settings.crypto.signature.default,
+        signing_kid=settings.crypto.signature.signing_kid,
+        signing_secret_key=secret_key,
+        verifying_keys_by_kid={settings.crypto.signature.signing_kid: public_key},
+    )
+    logger.info(
+        "crypto.facade.initialized",
+        default_signature_alg=settings.crypto.signature.default,
+        signing_kid=settings.crypto.signature.signing_kid,
+        verifying_kids=sorted({settings.crypto.signature.signing_kid}),
+    )
+
     # State im App-Lifecycle ablegen.
     app.state.settings = settings
     app.state.crypto_registry = registry
+    app.state.crypto_facade = facade
     app.state.signing_public_key = public_key
     app.state.signing_secret_key = secret_key
     try:

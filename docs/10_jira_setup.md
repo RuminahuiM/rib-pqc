@@ -118,6 +118,7 @@ Zusätzlich zu den Labels wird das in Jira eingebaute Priority-Feld pro Story ge
 | EPIC QUA | PQC-12 | EPIC QUA: Quality (Tests und Benchmarks) |
 | EPIC DOC | PQC-13 | EPIC DOC: Documentation und Reporting |
 | EPIC STR | PQC-14 | EPIC STR: Stretch Goals (Project-level) |
+| EPIC SEC | PQC-78 | EPIC SEC: Security Infrastructure (nachträglich aus Sprint-1-Reviews) |
 
 ### Stories
 
@@ -186,8 +187,13 @@ Zusätzlich zu den Labels wird das in Jira eingebaute Priority-Feld pro Story ge
 | STR-1 | PQC-75 | STR | Stretch |
 | STR-2 | PQC-76 | STR | Stretch |
 | STR-3 | PQC-77 | STR | Stretch |
+| SEC-1 | PQC-79 | SEC | 2 |
+| SEC-2 | PQC-80 | SEC | 2 |
+| SEC-3 | PQC-81 | SEC | 2 |
+| SEC-4 | PQC-82 | SEC | 2 |
+| SEC-5 | PQC-83 | SEC | 2 |
 
-**Total:** 13 Epics, 63 Stories = 76 Issues.
+**Total:** 14 Epics, 68 Stories = 82 Issues. (Initial 13 Epics plus 63 Stories am 17.05; Epic SEC mit 5 Stories nachträglich am 25.05 aus PQC-19 Closing-Review.)
 
 ---
 
@@ -252,3 +258,4 @@ Im Free-Tier ist das Anlegen eigener Custom Fields eingeschränkt. Workaround: A
 | Version | Datum | Änderung |
 |---|---|---|
 | 1.0 | 17.05.2026 | Initial-Version. Projekt-Übersicht, Label-Konvention, vollständige Mapping-Tabelle für 13 Epics und 63 Stories (PQC-2 bis PQC-77), nächste Setup-Schritte (Sprints, Releases, Board-Konfiguration, Mentor-Zugriff). |
+| 1.1 | 27.05.2026 | Sektion 2 umstrukturiert: vier Achsen der Priorisierung (MoSCoW, Sprint, Stretch, Built-in Priority Field) mit Mapping-Tabelle und MCP-Setz-Anleitung. Epic SEC (PQC-78) plus 5 Stories SEC-1 bis SEC-5 (PQC-79 bis PQC-83) ins Mapping aufgenommen, total jetzt 14 Epics und 68 Stories. |

@@ -53,3 +53,6 @@ crypto:
     # PQC-25 Review K-3: explizites Flag fuer Auto-Keygen in Dev. In Production-
     # Configs auf false setzen (oder Feld weglassen, Default ist false).
     allow_autogen_in_dev: true
+    # PQC-22 (CRY-2): kid den die Facade in ``sign``-Antworten mitliefert und
+    # bei ``verify`` zum Public-Key-Lookup nutzt.
+    signing_kid: "auth-signing-key-v1"

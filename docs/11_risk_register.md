@@ -55,7 +55,7 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 | R-S01 | Sprint-Kapazität wird systematisch überschritten | Termin | Hoch | Mittel | 6 | Active |
 | R-T04 | OIDC-Provider-Setup-Komplexität (Google, Microsoft) | Technisch | Mittel | Hoch | 6 | Active |
 | R-S04 | Doku-Zeit in Sprint 4 zu kurz | Termin | Mittel | Hoch | 6 | Active |
-| R-T01 | liboqs-python Build oder Install schlägt fehl | Technisch | Mittel | Hoch | 6 | Active |
+| R-T01 | liboqs-python Build oder Install schlägt fehl | Technisch | Mittel | Hoch | 6 | Mitigated (25.05) |
 | R-P01 | Motivationsverlust oder Burnout während Projekt | Persönlich | Mittel | Hoch | 6 | Active |
 | R-T03 | Mobile-OS-spezifische Crypto-Quirks (iOS/Android) | Technisch | Mittel | Mittel | 4 | Active |
 | R-T02 | @noble/post-quantum API-Instabilität | Technisch | Mittel | Mittel | 4 | Active |
@@ -90,6 +90,8 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 - Versionen explizit pinnen.
 
 **Contingency:** Falls liboqs-python im Python-Code nicht direkt importierbar ist, Alternative: liboqs C-Library via subprocess oder via cffi-Wrapper aufrufen. Mehraufwand ca. 1 Tag.
+
+**Status-Update 25.05.2026:** Mitigated. PQC-25 (CRY-5) hat liboqs-python 0.15.0 erfolgreich im python:3.12-slim Container installiert (Build-Zeit ca. 5 Min), ML-DSA-65 funktioniert mit korrekten FIPS-204-Sizes (Public 1952 Bytes, Secret 4032 Bytes). Contingency-Path nicht benötigt. Evidence: `../sprint_journal/sprint_1/evidence/PQC-25_CRY-5_liboqs_ml_dsa.md`.
 
 ---
 
