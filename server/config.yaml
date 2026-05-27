@@ -45,3 +45,11 @@ crypto:
     supported:
       - "ML-DSA-65"
     default: "ML-DSA-65"
+    # PQC-25 (CRY-5) AC-5: Key-Persistierung.
+    # In Dev wird beim ersten Service-Start auto-keygen plus save gemacht.
+    # In Production muss ein vorgegenerierter Key im Volume liegen.
+    private_key_path: "/data/keys/auth_signing_key.bin"
+    public_key_path: "/data/keys/auth_signing_key.pub"
+    # PQC-25 Review K-3: explizites Flag fuer Auto-Keygen in Dev. In Production-
+    # Configs auf false setzen (oder Feld weglassen, Default ist false).
+    allow_autogen_in_dev: true

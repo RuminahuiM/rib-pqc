@@ -1,21 +1,22 @@
 """FastAPI-App-Entry fuer den rib-pqc Auth-Service.
 
-Stories: PQC-19 (SKL-1), PQC-21 (CRY-1).
+Stories: PQC-19 (SKL-1), PQC-21 (CRY-1), PQC-25 (CRY-5).
 
-Aktuelle Aufgabe: minimaler Service, der per Health-Endpoint Liveness zeigt,
-korrekt strukturiertes JSON-Logging ausgibt und eine CryptoRegistry mit den
-in der Config aufgefuehrten KEM- und Signatur-Algorithmen aufbaut.
+Lifespan-Hook:
+  1. Logging initialisieren
+  2. CryptoRegistry mit Plugins befuellen
+  3. ML-DSA-65 Signing-Key laden oder im Dev-Modus generieren plus speichern
 
-Lokal starten (mit Hot-Reload, ignoriert Settings.host/port)::
+Lokal starten (mit Hot-Reload)::
 
     uv sync
     uv run uvicorn main:app --reload
 
-Lokal mit Settings.host/port aus YAML oder ENV::
+Mit Settings.host/port aus YAML oder ENV::
 
     uv run python main.py
 
-Im Container (default CMD ruft ``python main.py``)::
+Im Container::
 
     docker compose up --build  # aus dem infra/-Ordner heraus
 """
@@ -23,11 +24,13 @@ Im Container (default CMD ruft ``python main.py``)::
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 
 from config import get_settings
+from crypto import keys
 from crypto.registry import CryptoRegistry
 from crypto.registry_init import init_crypto_registry
 from logging_config import get_logger, setup_logging
@@ -37,9 +40,92 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 
+def _ensure_signing_keypair(
+    *,
+    registry: CryptoRegistry,
+    algorithm: str,
+    private_key_path: Path,
+    public_key_path: Path,
+    environment: str,
+    allow_autogen_in_dev: bool,
+) -> tuple[bytes, bytes]:
+    """Laed das Signing-Keypair aus der Disk, oder erzeugt es in Dev-Modus.
+
+    PQC-25 AC-5: Private Key wird aus File-Pfad geladen, Public Key extrahierbar.
+    Im Dev-Modus wird beim ersten Start auto-keygen plus save gemacht, damit
+    der Bootstrap nicht manuelle Pre-Setup-Schritte braucht.
+
+    Returns:
+        (public_key, secret_key) als raw bytes.
+
+    Raises:
+        FileNotFoundError: wenn Private-Key-File fehlt UND environment != 'dev'.
+    """
+    plugin = registry.get_signature(algorithm)
+    logger = get_logger("rib_pqc.crypto")
+
+    if keys.key_file_exists(private_key_path):
+        secret_key = keys.load_key(private_key_path)
+        if keys.key_file_exists(public_key_path):
+            public_key = keys.load_key(public_key_path)
+        else:
+            # Public Key fehlt aber Secret Key da. Re-derive via keygen, das
+            # liefert ein FRISCHES Keypair, also nicht passend. Bessere Loesung:
+            # liboqs hat keine "derive public from secret" Direkt-API. Wir
+            # speichern das Public-Key-File zusammen mit dem Secret-Key beim
+            # ersten Generieren. Falls public_key_path fehlt, abbrechen.
+            msg = (
+                f"Public key file missing at {public_key_path} but secret key "
+                f"present. Cannot derive public from secret. Re-generate by "
+                f"deleting {private_key_path}."
+            )
+            raise FileNotFoundError(msg)
+        logger.info(
+            "crypto.signing_key.loaded",
+            algorithm=algorithm,
+            private_key_path=str(private_key_path),
+            public_key_path=str(public_key_path),
+        )
+        return public_key, secret_key
+
+    # Kein Key-File da. Im Dev-Modus auto-keygen, aber nur mit doppeltem
+    # Flag-Check (K-3 aus PQC-25 Review).
+    if environment != "dev":
+        msg = (
+            f"Signing key file does not exist at {private_key_path} and "
+            f"environment is '{environment}' (not 'dev'). Refusing to "
+            f"auto-generate in non-dev mode."
+        )
+        raise FileNotFoundError(msg)
+    if not allow_autogen_in_dev:
+        msg = (
+            f"Signing key file does not exist at {private_key_path}. "
+            f"Auto-generation requires both environment='dev' AND "
+            f"crypto.signature.allow_autogen_in_dev=true. The latter is "
+            f"currently false. Refusing to auto-generate."
+        )
+        raise FileNotFoundError(msg)
+
+    public_key, secret_key = plugin.keygen()
+    keys.save_secret_key(private_key_path, secret_key)
+    keys.save_public_key(public_key_path, public_key)
+    # Warning-Level: Auto-Keygen ist ein Dev-Bequemlichkeitsfeature, sollte
+    # niemals stillschweigend in produktivem Setup passieren.
+    logger.warning(
+        "crypto.signing_key.generated",
+        algorithm=algorithm,
+        private_key_path=str(private_key_path),
+        public_key_path=str(public_key_path),
+        public_key_len=len(public_key),
+        secret_key_len=len(secret_key),
+        note="auto-generated in dev mode, do not use in production",
+    )
+    return public_key, secret_key
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Initialisiere Logging und CryptoRegistry beim App-Start."""
+    """Initialisiere Logging, CryptoRegistry und Signing-Keypair beim App-Start."""
     settings = get_settings()
     setup_logging(
         log_level=settings.log_level,
@@ -55,8 +141,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log_level=settings.log_level,
     )
 
-    # CryptoRegistry per Config befuellen. PQC-25 ersetzt die Placeholder
-    # durch echte liboqs-Adapter.
+    # CryptoRegistry per Config befuellen.
     registry = CryptoRegistry()
     init_crypto_registry(
         registry,
@@ -71,10 +156,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         signature_default=settings.crypto.signature.default,
     )
 
-    # State im App-Lifecycle ablegen, damit nachfolgende Stories (CRY-2 Facade,
-    # AUT/TOK-Stories) den gleichen Singleton verwenden koennen.
+    # ML-DSA-65 Signing-Key laden oder generieren.
+    sig_alg = settings.crypto.signature.default
+    public_key, secret_key = _ensure_signing_keypair(
+        registry=registry,
+        algorithm=sig_alg,
+        private_key_path=Path(settings.crypto.signature.private_key_path),
+        public_key_path=Path(settings.crypto.signature.public_key_path),
+        environment=settings.environment,
+        allow_autogen_in_dev=settings.crypto.signature.allow_autogen_in_dev,
+    )
+
+    # State im App-Lifecycle ablegen.
     app.state.settings = settings
     app.state.crypto_registry = registry
+    app.state.signing_public_key = public_key
+    app.state.signing_secret_key = secret_key
     try:
         yield
     finally:
@@ -106,9 +203,6 @@ def _run() -> None:
     """Entry-Point fuer ``python main.py`` und Docker-CMD.
 
     Liest Settings.host und Settings.port und startet uvicorn programmatisch.
-    Lokale Dev mit Hot-Reload nutzt weiterhin ``uvicorn main:app --reload``,
-    weil --reload einen Worker-Subprozess startet und nicht zur programmatischen
-    API passt.
     """
     import uvicorn
 
@@ -117,7 +211,7 @@ def _run() -> None:
         "main:app",
         host=settings.host,
         port=settings.port,
-        log_config=None,  # structlog uebernimmt das Logging via lifespan
+        log_config=None,
     )
 
 

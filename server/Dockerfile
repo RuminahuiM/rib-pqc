@@ -1,14 +1,15 @@
 # syntax=docker/dockerfile:1.7
 # Auth-Service Dockerfile
-# Story: PQC-19 (SKL-1), Acceptance Criterion AC-4.
+# Stories: PQC-19 (SKL-1), PQC-21 (CRY-1), PQC-25 (CRY-5)
 #
 # Single-Stage Build mit uv als Package-Manager (Tech-Stack-Doku 4.4).
-# In einer Sprint-4-Polish-Story kann auf Multi-Stage umgestellt werden, falls
-# Image-Groesse zum Thema wird. Fuer Sprint 1 ist Single-Stage einfacher zu
-# debuggen.
-#
-# uv-Binary wird aus dem offiziellen Astral-Image kopiert, sodass wir keine
+# uv-Binary aus offiziellem Astral-Image kopiert, sodass wir keine
 # zusaetzlichen System-Dependencies pinnen muessen.
+#
+# liboqs-python triggert beim ersten Import den Download und Build der
+# liboqs C-Library aus dem oqs-Source-Tree. Wir pre-compilen das im
+# Docker-Build, damit der Container-Start nicht jedes Mal mehrere Minuten
+# braucht. Das passiert im "import oqs" RUN-Step.
 
 FROM python:3.12-slim AS runtime
 
@@ -23,17 +24,26 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
-# Minimale Systembibliotheken plus curl fuer Healthcheck/Debug.
+# System-Dependencies:
+#   - ca-certificates plus curl: TLS plus Debug-Tools
+#   - build-essential, cmake, ninja-build, git: liboqs C-Library-Build
+#     (von liboqs-python beim ersten Import getriggert)
+#   - libssl-dev: liboqs linkt gegen OpenSSL fuer klassische Krypto-Primitive
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        build-essential \
+        cmake \
+        ninja-build \
+        git \
+        libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Schritt 1: Build-Metadaten kopieren. README.md wird mitgenommen, weil
 # pyproject.toml im [project]-Block `readme = "README.md"` referenziert.
-# Hatchling validiert das Feld waehrend des editable-Wheel-Builds und scheitert
-# sonst mit "Readme file does not exist".
 COPY pyproject.toml README.md ./
 COPY uv.lock* ./
 
@@ -42,21 +52,29 @@ COPY uv.lock* ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --no-install-project
 
-# Schritt 3: Anwendungs-Code kopieren.
+# Schritt 3: liboqs C-Library beim ersten oqs-Import pre-compilen und in das
+# venv-Verzeichnis caching. Dauert beim allerersten Build mehrere Minuten,
+# danach via Layer-Cache instant. Per OQS_INSTALL_PATH explizit ablegen.
+ENV OQS_INSTALL_PATH=/opt/oqs
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=cache,target=/root/.cache/pip \
+    python -c "import oqs; print('liboqs version:', oqs.oqs_version()); print('liboqs ML-DSA available:', 'ML-DSA-65' in oqs.get_enabled_sig_mechanisms())"
+
+# Schritt 4: Anwendungs-Code kopieren.
 COPY main.py config.py logging_config.py config.yaml ./
 COPY routers ./routers
 COPY crypto ./crypto
 
-# Schritt 4: Projekt selbst registrieren (ueber pyproject.toml).
+# Schritt 5: Projekt selbst registrieren (ueber pyproject.toml).
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev
 
 # Non-root User aus Security-Best-Practice. /data wird vom Volume gemountet
-# und braucht Schreibrechte.
+# und braucht Schreibrechte fuer SQLite und kuenftige Key-Files.
 RUN groupadd --system app \
     && useradd --system --gid app --create-home --home-dir /home/app app \
-    && mkdir -p /data \
-    && chown -R app:app /app /data /opt/venv
+    && mkdir -p /data /data/keys \
+    && chown -R app:app /app /data /opt/venv /opt/oqs
 
 USER app
 

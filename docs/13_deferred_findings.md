@@ -70,3 +70,28 @@ Tier-1-Findings F-001 bis F-005 sind als Jira-Stories unter dem neuen Epic
 Alle fuenf Stories haben einen "Blocks PQC-30 (AUT-3)"-Issue-Link in Jira.
 Sprint-Label ist `sprint-2`. Finale Sprint-Zuteilung obliegt dem PM-Agent /
 Co-SM-Chat.
+
+
+## Findings aus PQC-25 (CRY-5) Code-Review am 25.05.2026
+
+Keine Tier-1-Findings (alle Should-Items waren mit kleinem Aufwand fixbar oder
+schon abgedeckt). 7 Tier-2-Findings, 1 davon noch in der Story selbst gefixt.
+
+### Tier-2 (Polish, Code-Hygiene, keine eigene Story)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-014 | Secret Key lebt als bytes-Objekt im Python-Memory ueber Service-Lifetime | Should | vor produktiver Demo, Bericht-Limitation | open (Pure-Python-Limitation, im Bericht erwaehnen) |
+| F-015 | LibOqsSignature.verify faengt zu breit (except Exception -> False) | Info | bei naechstem Touch von liboqs_signature.py | open (inline TODO empfohlen) |
+| F-016 | Dev-Setup-Doku: liboqs-python braucht Internet beim ersten Import | Info | Sprint 4 Doku-Polish | open |
+| F-017 | Docker-Image enthaelt Build-Tools (gcc, cmake, ninja-build, git, libssl-dev) im Runtime | May | Sprint 4, Multi-Stage-Build mit Bericht-Gewinn | open |
+| F-018 | liboqs C-Source-Download im Build nicht hash-gepinnt (Supply-Chain-Reproducibility) | May | Sprint 4, vor Bericht-Abgabe | open |
+| F-019 | Tech-Stack-Doku Abschnitt 2.3 sagt liboqs-python 0.10+, installiert ist 0.12+ | Info | Sprint 4 Doku-Polish (mit F-011 buendeln) | open |
+| K-3 (war Should) | Auto-Keygen erforderte nur environment=dev, ohne expliziten zweiten Flag | Should | bei naechstem Touch | resolved (PQC-25, neues Feld crypto.signature.allow_autogen_in_dev, doppelter Flag-Check in _ensure_signing_keypair) |
+
+### Historie-Update 25.05.2026 abends-spaet
+
+Findings F-014 bis F-019 plus K-3-Resolution aus dem Senior-Closing-Review von
+PQC-25 (CRY-5) ergaenzt. R-T01 (Risk Register) ist durch PQC-25 erfolgreich
+gemitigated, sollte vom Co-SM-Chat im Risk Register entsprechend dokumentiert
+werden.

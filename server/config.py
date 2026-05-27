@@ -103,6 +103,16 @@ class SignatureConfig(BaseModel):
 
     supported: list[str] = Field(default_factory=lambda: ["ML-DSA-65"])
     default: str = Field(default="ML-DSA-65")
+    # PQC-25 (CRY-5) AC-5: Pfad zum persistierten Private Key.
+    # In Dev wird der Key beim ersten Start auto-generiert wenn das File fehlt.
+    private_key_path: str = Field(default="/data/keys/auth_signing_key.bin")
+    public_key_path: str = Field(default="/data/keys/auth_signing_key.pub")
+    # Defense-in-Depth (Finding K-3 aus PQC-25 Review): Auto-Keygen verlangt
+    # ZWEI Flags: environment=dev UND allow_autogen_in_dev=true. Damit reicht
+    # ein versehentliches RIB_ENVIRONMENT=dev in Production nicht aus, der
+    # Service wuerde trotzdem hart scheitern wenn kein vorgenerierter Key da
+    # ist und allow_autogen_in_dev nicht explizit gesetzt wurde.
+    allow_autogen_in_dev: bool = Field(default=False)
 
 
 class CryptoConfig(BaseModel):

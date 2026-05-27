@@ -1,28 +1,20 @@
-"""Init-Function fuer die CryptoRegistry, plus Sprint-1-Placeholder-Plugins.
+"""Init-Function fuer die CryptoRegistry.
 
-Story: PQC-21 (CRY-1), Acceptance Criterion AC-4.
-Architektur-Bezug: docs/07_design.md Abschnitt 6.3.
+Story-Kontext:
+- PQC-21 (CRY-1): Registry-Setup, Placeholder-Plugins.
+- PQC-25 (CRY-5): Signaturen werden jetzt von ``LibOqsSignature`` bedient.
+  Placeholder-Klassen bleiben als Test-Hilfsmittel und fuer KEMs bis CRY-3.
 
-**Wichtig fuer Sprint 1:**
-Diese Datei registriert *Placeholder*-Plugins, keine echten liboqs-Adapter.
-PQC-25 (CRY-5) tauscht die ``PlaceholderKem`` und ``PlaceholderSignature``
-durch ``LibOqsKem`` und ``LibOqsSignature`` aus. Damit ist R-T01 (liboqs-Build
-schlaegt fehl, siehe ``docs/11_risk_register.md``) auf eine einzige Story
-isoliert und CRY-1 kann ohne liboqs-Container getestet werden.
-
-**Erlaubte Algorithmen** (per Tech-Stack-Doku 2.3 und Project-Decisions):
-
-- KEM: ``ML-KEM-768``, ``ML-KEM-1024`` (FIPS 203)
-- Signature: ``ML-DSA-65`` (FIPS 204)
-
-Unbekannte Namen in der Config werfen ``UnsupportedAlgorithmError``, damit
-Tippfehler im Setup nicht stillschweigend laufen.
+**Wichtig:** Algorithmen sind in den ``_SUPPORTED_*_ALGORITHMS``-Sets
+geweisslistet. Unbekannte Namen in der Config werfen
+``UnsupportedAlgorithmError``, damit Tippfehler nicht stillschweigend laufen.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from crypto.adapters.liboqs_signature import LibOqsSignature
 from crypto.registry import RegistryError
 
 if TYPE_CHECKING:
@@ -30,22 +22,19 @@ if TYPE_CHECKING:
 
 
 # Whitelist der in Sprint 1 unterstuetzten Algorithmus-Identifier.
-# In PQC-25 (CRY-5) wird diese Liste auch geprueft, bevor wir auf liboqs zugreifen.
 _SUPPORTED_KEM_ALGORITHMS: frozenset[str] = frozenset({"ML-KEM-768", "ML-KEM-1024"})
 _SUPPORTED_SIGNATURE_ALGORITHMS: frozenset[str] = frozenset({"ML-DSA-65"})
 
 
 class UnsupportedAlgorithmError(RegistryError):
     """Wird geworfen, wenn die Config einen Algorithmus-Namen enthaelt, den wir
-    in diesem Sprint nicht supporten (z.B. Tippfehler 'ML-KEM-512')."""
+    in diesem Sprint nicht supporten."""
 
 
 class PlaceholderKem:
-    """Placeholder-Plugin, das die ``KemPlugin``-Protocol-Methoden hat, aber
-    bei jedem Crypto-Call ``NotImplementedError`` wirft.
+    """Placeholder-Plugin fuer KEM. Wird in CRY-3 (PQC-23) durch echten Adapter ersetzt.
 
-    Wird in Sprint 1 registriert, damit AC-4 erfuellbar ist. PQC-25 ersetzt
-    durch echten liboqs-Adapter.
+    Bleibt aktuell in Verwendung, weil PQC-25 nur den Signatur-Adapter abdeckt.
     """
 
     def __init__(self, algorithm: str) -> None:
@@ -58,7 +47,7 @@ class PlaceholderKem:
     def keygen(self) -> tuple[bytes, bytes]:
         msg = (
             f"PlaceholderKem({self._algorithm}).keygen() not implemented. "
-            "Replace via PQC-25 (CRY-5) liboqs-Adapter."
+            "Replace via PQC-23 (CRY-3) liboqs-KEM-Adapter."
         )
         raise NotImplementedError(msg)
 
@@ -66,7 +55,7 @@ class PlaceholderKem:
         del public_key
         msg = (
             f"PlaceholderKem({self._algorithm}).encaps() not implemented. "
-            "Replace via PQC-25 (CRY-5)."
+            "Replace via PQC-23 (CRY-3)."
         )
         raise NotImplementedError(msg)
 
@@ -74,13 +63,17 @@ class PlaceholderKem:
         del ciphertext, secret_key
         msg = (
             f"PlaceholderKem({self._algorithm}).decaps() not implemented. "
-            "Replace via PQC-25 (CRY-5)."
+            "Replace via PQC-23 (CRY-3)."
         )
         raise NotImplementedError(msg)
 
 
 class PlaceholderSignature:
-    """Placeholder-Plugin fuer Signaturen, analog zu ``PlaceholderKem``."""
+    """Placeholder-Plugin fuer Signaturen.
+
+    Bleibt als Test-Hilfsmittel (Unit-Tests die liboqs nicht laden wollen).
+    Produktiv-Registry verwendet seit PQC-25 ``LibOqsSignature``.
+    """
 
     def __init__(self, algorithm: str) -> None:
         self._algorithm = algorithm
@@ -92,7 +85,7 @@ class PlaceholderSignature:
     def keygen(self) -> tuple[bytes, bytes]:
         msg = (
             f"PlaceholderSignature({self._algorithm}).keygen() not implemented. "
-            "Replace via PQC-25 (CRY-5) liboqs-Adapter."
+            "Production registry uses LibOqsSignature since PQC-25."
         )
         raise NotImplementedError(msg)
 
@@ -100,7 +93,7 @@ class PlaceholderSignature:
         del message, secret_key
         msg = (
             f"PlaceholderSignature({self._algorithm}).sign() not implemented. "
-            "Replace via PQC-25 (CRY-5)."
+            "Production registry uses LibOqsSignature since PQC-25."
         )
         raise NotImplementedError(msg)
 
@@ -108,21 +101,9 @@ class PlaceholderSignature:
         del message, signature, public_key
         msg = (
             f"PlaceholderSignature({self._algorithm}).verify() not implemented. "
-            "Replace via PQC-25 (CRY-5)."
+            "Production registry uses LibOqsSignature since PQC-25."
         )
         raise NotImplementedError(msg)
-
-
-class CryptoConfigLike:
-    """Minimale Strukturdefinition der Crypto-Config, die wir hier brauchen.
-
-    In der Realitaet kommt das Objekt aus pydantic-settings (siehe config.py).
-    Hier verwenden wir Duck-Typing, damit wir in Tests Mock-Configs einfach
-    bauen koennen.
-    """
-
-    kem_supported: list[str]
-    signature_supported: list[str]
 
 
 def init_crypto_registry(
@@ -131,22 +112,16 @@ def init_crypto_registry(
     kem_supported: list[str],
     signature_supported: list[str],
 ) -> None:
-    """Befuelle ``registry`` mit Placeholder-Plugins fuer alle in der Config
-    aufgelisteten Algorithmen.
+    """Befuelle ``registry`` mit Plugins fuer die in der Config aufgelisteten
+    Algorithmen.
 
-    Args:
-        registry: Eine frische ``CryptoRegistry``-Instanz.
-        kem_supported: Liste der KEM-Namen aus ``config.crypto.kem.supported``.
-        signature_supported: Liste der Signature-Namen aus
-            ``config.crypto.signature.supported``.
+    Sprint-1-Stand:
+    - KEMs: ``PlaceholderKem`` (CRY-3 ersetzt durch echte liboqs-KEM-Adapter)
+    - Signaturen: ``LibOqsSignature`` (echt, seit PQC-25 CRY-5)
 
     Raises:
         UnsupportedAlgorithmError: wenn ein Name in den Listen nicht in der
             internen Whitelist steht.
-
-    Diese Function ist idempotent in dem Sinne, dass ein zweiter Aufruf mit
-    derselben Registry zu ``DuplicateAlgorithmError`` fuehrt. Aufrufer
-    instanziieren pro Service-Start eine neue Registry.
     """
     for alg in kem_supported:
         if alg not in _SUPPORTED_KEM_ALGORITHMS:
@@ -164,4 +139,4 @@ def init_crypto_registry(
                 f"Sprint-1-Whitelist: {sorted(_SUPPORTED_SIGNATURE_ALGORITHMS)}"
             )
             raise UnsupportedAlgorithmError(msg)
-        registry.register_signature(alg, PlaceholderSignature(alg))
+        registry.register_signature(alg, LibOqsSignature(alg))
