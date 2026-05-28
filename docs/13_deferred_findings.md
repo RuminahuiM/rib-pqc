@@ -227,3 +227,25 @@ von F-012, daher uebersprungen). Highlights:
 - **F-034 / F-038 sind PQC-30-related** und sollten dort entschieden werden.
 - Logging-Hardening-Bundle waechst: F-021, F-026, F-031, F-034. Vor PQC-30
   als ein zusammenhaengender Refactoring-Pass.
+
+
+## Findings aus PQC-29 (AUT-2) Code-Review am 28.05.2026
+
+Story war Admin-CLI fuer User-Provisioning. AC-1 bis AC-5 alle live im
+Container verifiziert. 0 Must, 0 Tier-1, 3 neue Tier-2-Findings (alle Info).
+
+### Tier-1 (keine neuen)
+
+### Tier-2 (Polish, Code-Hygiene)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-040 | CLI macht Engine+Hasher-Init pro Command. Multi-Command-Session-Use waere effizienter mit Singleton-Pattern | Info | Sprint 3 Polish, wenn Library-Use-Case kommt | open |
+| F-041 | Admin-CLI hat keine Confirmation-Prompts fuer destructive Actions. Aktuell keine destructiven Commands, aber bei `delete-user`-Erweiterung relevant | Info | bei CLI-Erweiterung um destructive Commands | open |
+| F-042 | `list-users` hat keine Pagination - bei wachsender User-Base unhandlich. Im `UserRepository.list_all`-Docstring schon dokumentiert | Info | wenn User-Base 100+ wird | open |
+
+### Historie-Update 28.05.2026 (PQC-29 abends)
+
+PQC-29 Closing-Review: alle Findings sind Info-Level Sprint-3-Polish-Items.
+Code ist sauber, CLI ist OWASP-konform (kein `--password <plain>` argv,
+getpass + stdin-Pipe). Keine Tier-1-Trigger.

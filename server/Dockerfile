@@ -61,7 +61,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     python -c "import oqs; print('liboqs version:', oqs.oqs_version()); print('liboqs ML-DSA available:', 'ML-DSA-65' in oqs.get_enabled_sig_mechanisms())"
 
 # Schritt 4: Anwendungs-Code kopieren.
-COPY main.py config.py logging_config.py config.yaml alembic.ini ./
+COPY main.py admin.py config.py logging_config.py config.yaml alembic.ini ./
 COPY routers ./routers
 COPY crypto ./crypto
 COPY services ./services

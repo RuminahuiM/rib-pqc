@@ -151,6 +151,17 @@ class UserRepository:
             return None
         return await self._session.get(User, user_id)
 
+    async def list_all(self) -> list[User]:
+        """Liefert alle User-Records, sortiert nach created_at (asc).
+
+        Wird vom Admin-CLI (PQC-29 AUT-2) fuer ``list-users`` verwendet.
+        Sprint-1: keine Pagination - bei wachsender User-Base muss das
+        spaeter durch ein gepagedtes Interface ersetzt werden.
+        """
+        stmt = select(User).order_by(User.created_at)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def find_by_external(
         self, auth_method: str, external_sub: str
     ) -> User | None:
