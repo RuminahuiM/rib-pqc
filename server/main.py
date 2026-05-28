@@ -29,11 +29,13 @@ from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 
+from auth.password import PasswordHasher
 from config import get_settings
 from crypto import keys
 from crypto.facade import CryptoFacade
 from crypto.registry import CryptoRegistry
 from crypto.registry_init import init_crypto_registry
+from db.engine import create_engine_from_config, create_session_factory
 from logging_config import get_logger, setup_logging
 from routers import health
 from services.token_service import TokenService
@@ -204,6 +206,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         exp_leeway_seconds=settings.token.exp_leeway_seconds,
     )
 
+    # PQC-28 (AUT-1): Async-DB-Engine plus Session-Factory plus PasswordHasher.
+    db_engine = create_engine_from_config(settings.database)
+    session_factory = create_session_factory(db_engine)
+    password_hasher = PasswordHasher(settings.argon2)
+    db_engine = create_engine_from_config(settings.database)
+    session_factory = create_session_factory(db_engine)
+    password_hasher = PasswordHasher(settings.argon2)
+    logger.info(
+        "db.session_factory.initialized",
+        async_url_scheme=settings.database.async_url.split("://", 1)[0],
+    )
+
     # State im App-Lifecycle ablegen.
     app.state.settings = settings
     app.state.crypto_registry = registry
@@ -211,9 +225,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.token_service = token_service
     app.state.signing_public_key = public_key
     app.state.signing_secret_key = secret_key
+    app.state.db_engine = db_engine
+    app.state.session_factory = session_factory
+    app.state.password_hasher = password_hasher
     try:
         yield
     finally:
+        await db_engine.dispose()
         logger.info("service.stop")
 
 
@@ -239,10 +257,7 @@ app = create_app()
 
 
 def _run() -> None:
-    """Entry-Point fuer ``python main.py`` und Docker-CMD.
-
-    Liest Settings.host und Settings.port und startet uvicorn programmatisch.
-    """
+    """Entry-Point fuer ``python main.py`` und Docker-CMD."""
     import uvicorn
 
     settings = get_settings()

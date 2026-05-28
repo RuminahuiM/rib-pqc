@@ -194,3 +194,36 @@ implementiert), 3 neue Tier-2-Findings F-031 bis F-033. Highlights:
 - **F-032 plus F-033 (Info):** Sprint-3-Polish, optional. Aktueller Code
   ist RFC-konform aber nicht maximal-streng. Wuerde bei einem strengen
   Audit-Penetration-Test wahrscheinlich nicht durchfallen.
+
+
+## Findings aus PQC-28 (AUT-1) Code-Review am 28.05.2026
+
+Story war User-Store mit SQLAlchemy 2.0 async, Argon2id-Hashing und Alembic-
+Migrations. AC-1 bis AC-5 alle erfuellt plus zusaetzliche Live-Container-
+CRUD-Demo (6 Szenarien gruen). 5 neue Tier-2-Findings, keine Tier-1.
+
+### Tier-1 (keine neuen)
+
+(F-012 ist durch AUT-1 jetzt erreicht und sollte bei Touch von routers/health.py
+adressiert werden.)
+
+### Tier-2 (Polish, Code-Hygiene)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-034 | email-Logging fehlt bei `user.created`-Event. Privacy-by-Design positiv, aber bei AUT-3 ggf. Debug-Forensik gewuenscht | Info | bei PQC-30 AUT-3, bewusste Entscheidung treffen | open |
+| F-035 | `db.engine.created` loggt volle URL auf INFO. Bei SQLite OK, bei Postgres-Migration greift `_redact_url` | Info | bei Postgres-Migration | open |
+| F-037 | SQLAlchemy/argon2-cffi/alembic Minor-Floats moeglich. uv.lock macht reproducible builds | Info | Sprint 4 Polish, mit F-006 buendeln | open |
+| F-038 | `dummy_verify()` ist Methode auf PasswordHasher. Bei PQC-31 AUT-4 koennte sie via FastAPI-Depends injiziert werden fuer Tracing | Info | bei PQC-31 AUT-4 | open |
+| F-039 | PasswordHasher hat keinen "Pepper" (server-side secret zusaetzlich zum Salt). OWASP empfiehlt fuer hochsicherheits-Setups | Should | Sprint 3 Polish, vor Production-Demo | open |
+
+### Historie-Update 28.05.2026 (PQC-28 spaet abends)
+
+PQC-28 Closing-Review: 5 neue Tier-2-Findings F-034-F-039 (F-036 ist Duplikat
+von F-012, daher uebersprungen). Highlights:
+- **F-039 (Should):** Password-Pepper als Sprint-3-Polish vor Production
+  hinzufuegen. Aktuell sind die Salts (16 Bytes random pro Hash) bereits
+  starke Defense, aber ein Pepper waere zusaetzliche Tiefe.
+- **F-034 / F-038 sind PQC-30-related** und sollten dort entschieden werden.
+- Logging-Hardening-Bundle waechst: F-021, F-026, F-031, F-034. Vor PQC-30
+  als ein zusammenhaengender Refactoring-Pass.

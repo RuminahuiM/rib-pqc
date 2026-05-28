@@ -61,10 +61,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     python -c "import oqs; print('liboqs version:', oqs.oqs_version()); print('liboqs ML-DSA available:', 'ML-DSA-65' in oqs.get_enabled_sig_mechanisms())"
 
 # Schritt 4: Anwendungs-Code kopieren.
-COPY main.py config.py logging_config.py config.yaml ./
+COPY main.py config.py logging_config.py config.yaml alembic.ini ./
 COPY routers ./routers
 COPY crypto ./crypto
 COPY services ./services
+COPY models ./models
+COPY db ./db
+COPY auth ./auth
+COPY alembic ./alembic
 
 # Schritt 5: Projekt selbst registrieren (ueber pyproject.toml).
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -81,7 +85,7 @@ USER app
 
 EXPOSE 8000
 
-# Default-Command. ``python main.py`` triggert den ``_run``-Helper, der
-# Settings.host und Settings.port liest. Damit funktionieren ``RIB_HOST`` und
-# ``RIB_PORT`` Environment-Overrides wie das Settings-Modell suggeriert.
-CMD ["python", "main.py"]
+# Default-Command. PQC-28: Alembic-Migrations werden bei jedem Start
+# ausgefuehrt (idempotent, no-op wenn schon current). Danach uvicorn-Run via
+# ``python main.py`` (liest Settings.host/port).
+CMD ["sh", "-c", "alembic upgrade head && python main.py"]

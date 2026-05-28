@@ -1,23 +1,13 @@
 """Configuration loading fuer den Auth-Service.
 
-Stories: PQC-19 (SKL-1) AC-2, PQC-21 (CRY-1) AC-4, PQC-32/33 (TOK-1/TOK-2).
+Stories: PQC-19 SKL-1, PQC-21 CRY-1, PQC-25 CRY-5, PQC-22 CRY-2,
+PQC-32 TOK-1, PQC-33 TOK-2, PQC-28 AUT-1.
 
 Lade Settings in folgender Reihenfolge (von schwach nach stark):
-  1. Defaults im ``Settings``-Modell (pydantic-Default-Werte)
-  2. Werte aus YAML-File (Pfad ueber ``RIB_CONFIG_FILE`` env, Default ``config.yaml``)
-  3. Werte aus ``.env``-File im Projekt-Root oder im server/-Ordner
+  1. Defaults im ``Settings``-Modell
+  2. Werte aus YAML-File (Pfad ueber ``RIB_CONFIG_FILE`` env, Default config.yaml)
+  3. Werte aus ``.env``-File
   4. Environment-Variablen mit Praefix ``RIB_``
-
-Verwendet pydantic-settings 2.x (Tech-Stack-Doku Abschnitt 2.5).
-
-Beispielnutzung::
-
-    from config import get_settings
-    settings = get_settings()
-    print(settings.app_name)
-    print(settings.crypto.kem.supported)
-
-In Tests kann der LRU-Cache via ``get_settings.cache_clear()`` zurueckgesetzt werden.
 """
 
 from __future__ import annotations
@@ -34,13 +24,10 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, Settings
 LogLevel = Literal["debug", "info", "warning", "error", "critical"]
 Environment = Literal["dev", "staging", "prod"]
 
-# Env-Var-Name fuer den optionalen alternativen YAML-Pfad (geschlossen Finding F-010
-# aus docs/13_deferred_findings.md durch Class-Konstante).
 _CONFIG_FILE_ENV: str = "RIB_CONFIG_FILE"
 
 
 def _project_root() -> Path:
-    """Wurzel des server/-Ordners."""
     return Path(__file__).resolve().parent
 
 
@@ -49,7 +36,6 @@ def _default_config_yaml() -> Path:
 
 
 def _load_yaml_config(path: Path) -> dict[str, Any]:
-    """Lade die YAML-Konfiguration. Gibt leeres dict zurueck, wenn die Datei fehlt."""
     if not path.is_file():
         return {}
     with path.open("r", encoding="utf-8") as fh:
@@ -68,7 +54,7 @@ class YamlConfigSource(PydanticBaseSettingsSource):
         self._yaml_data: dict[str, Any] = _load_yaml_config(yaml_path)
 
     def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
-        del field  # unused, signature required by base class
+        del field
         value = self._yaml_data.get(field_name)
         return value, field_name, False
 
@@ -79,7 +65,7 @@ class YamlConfigSource(PydanticBaseSettingsSource):
         value: Any,
         value_is_complex: bool,
     ) -> Any:
-        del field_name, field, value_is_complex  # unused, signature required by base
+        del field_name, field, value_is_complex
         return value
 
     def __call__(self) -> dict[str, Any]:
@@ -92,38 +78,20 @@ class YamlConfigSource(PydanticBaseSettingsSource):
 
 
 class KemConfig(BaseModel):
-    """Konfiguration fuer KEM-Algorithmen."""
-
     supported: list[str] = Field(default_factory=lambda: ["ML-KEM-768"])
     default: str = Field(default="ML-KEM-768")
 
 
 class SignatureConfig(BaseModel):
-    """Konfiguration fuer Signatur-Algorithmen."""
-
     supported: list[str] = Field(default_factory=lambda: ["ML-DSA-65"])
     default: str = Field(default="ML-DSA-65")
-    # PQC-25 (CRY-5) AC-5: Pfad zum persistierten Private Key.
-    # In Dev wird der Key beim ersten Start auto-generiert wenn das File fehlt.
     private_key_path: str = Field(default="/data/keys/auth_signing_key.bin")
     public_key_path: str = Field(default="/data/keys/auth_signing_key.pub")
-    # Defense-in-Depth (Finding K-3 aus PQC-25 Review): Auto-Keygen verlangt
-    # ZWEI Flags: environment=dev UND allow_autogen_in_dev=true. Damit reicht
-    # ein versehentliches RIB_ENVIRONMENT=dev in Production nicht aus, der
-    # Service wuerde trotzdem hart scheitern wenn kein vorgenerierter Key da
-    # ist und allow_autogen_in_dev nicht explizit gesetzt wurde.
     allow_autogen_in_dev: bool = Field(default=False)
-    # PQC-22 (CRY-2): kid (Key Identifier) den die CryptoFacade in
-    # ``sign()``-Antworten zurueckliefert und in ``verify()`` per Lookup zum
-    # Public Key aufloest. Sprint 1 hat genau einen Signing-Key, deshalb ein
-    # konfigurierbarer String. Spaeter koennten mehrere kids parallel gepflegt
-    # werden (Key-Rotation), das waere ein Sprint-3-Polish-Thema.
     signing_kid: str = Field(default="auth-signing-key-v1")
 
 
 class CryptoConfig(BaseModel):
-    """Top-Level-Wrapper fuer die crypto-Section in config.yaml."""
-
     kem: KemConfig = Field(default_factory=KemConfig)
     signature: SignatureConfig = Field(default_factory=SignatureConfig)
 
@@ -136,29 +104,57 @@ class CryptoConfig(BaseModel):
 class TokenConfig(BaseModel):
     """Konfiguration fuer Broker-Token-Issuance und -Verifikation."""
 
-    # iss-Claim im Token-Payload. Separat vom internen app_name, damit ein
-    # Rebrand des Service-Namens nicht alle bereits ausgestellten Tokens
-    # ungueltig macht. Default matched Design 5.1.
     issuer: str = Field(default="pqc-auth-service")
-    # Token-Time-to-Live in Sekunden. Default 1 Stunde wie Design-Beispiel.
     ttl_seconds: int = Field(default=3600, ge=1)
-    # PQC-33 (TOK-2) AC-6: Allowlist erlaubter Signatur-Algorithmen im
-    # JWS-Header. case-insensitive Vergleich beim Verify. RFC 8725 BCP
-    # Schutz gegen alg-confusion und alg=none. Default ein einziger Eintrag
-    # passend zum Crypto-Default. Bei Migration zu z.B. ML-DSA-87 koennen
-    # parallel beide alg fuer eine Uebergangs-Phase zugelassen werden, ohne
-    # Code-Deploy.
+    # PQC-33 AC-6: case-insensitive Allowlist (RFC 8725 BCP).
     allowed_algs: list[str] = Field(default_factory=lambda: ["ML-DSA-65"])
-    # PQC-33 (TOK-2) AC-3: Clock-Skew-Tolerance fuer exp-Check. 30s als
-    # Best-Practice-Sweet-Spot (Curity-Empfehlung) statt 60s OpenID-Default,
-    # weil Container mit NTP-Sync typisch <5s Drift hat. Wird NICHT auf iat
-    # angewendet (Replay-Schutz).
+    # PQC-33 AC-3: Clock-Skew-Toleranz fuer exp-Check, nicht iat.
     exp_leeway_seconds: int = Field(default=30, ge=0)
 
 
-class Settings(BaseSettings):
-    """Typsichere Settings, geladen aus YAML, .env und Environment."""
+# ---------------------------------------------------------------------------
+# Argon2-Config (PQC-28 / AUT-1 AC-4)
+# ---------------------------------------------------------------------------
 
+
+class Argon2Config(BaseModel):
+    """Argon2id-Parameter fuer Password-Hashing.
+
+    Story-AC-4 Default-Werte (m=64MB, t=3, p=4): sicherer als OWASP-2024-
+    Sweet-Spot, CPU/RAM-intensiver pro Hash (~250-500ms auf modernem Host).
+
+    Tuning-Hinweis: Falls Login zu langsam wirkt im realen Setup, koennen die
+    Werte ohne Code-Aenderung auf OWASP-2024 reduziert werden (z.B.
+    memory_cost_kb=46000, time_cost=1, parallelism=1). Sicherheits-Tradeoff
+    vorab dokumentieren.
+    """
+
+    memory_cost_kb: int = Field(default=65536, ge=8)
+    time_cost: int = Field(default=3, ge=1)
+    parallelism: int = Field(default=4, ge=1)
+    salt_length: int = Field(default=16, ge=8)
+    hash_length: int = Field(default=32, ge=16)
+
+
+# ---------------------------------------------------------------------------
+# Database-Config (PQC-28 / AUT-1 AC-2, AC-3)
+# ---------------------------------------------------------------------------
+
+
+class DatabaseConfig(BaseModel):
+    """Async-Database-Konfiguration (SQLAlchemy 2.0 + aiosqlite).
+
+    Application nutzt async_url (aiosqlite-Treiber).
+    Alembic nutzt sync_url (Standard sqlite3-Treiber) fuer Migrations.
+    Beide URLs zeigen typisch auf dieselbe Datei, nur Treiber unterscheidet.
+    """
+
+    async_url: str = Field(default="sqlite+aiosqlite:////data/auth.sqlite")
+    sync_url: str = Field(default="sqlite:////data/auth.sqlite")
+    echo: bool = Field(default=False)
+
+
+class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="RIB_",
         env_file=(".env", "../.env"),
@@ -180,7 +176,7 @@ class Settings(BaseSettings):
     # Logging
     log_level: LogLevel = Field(default="info")
 
-    # Datenspeicher (in spaeteren Stories tatsaechlich genutzt)
+    # Datenspeicher (Legacy-Felder, durch DatabaseConfig schrittweise abgeloest)
     sqlite_path: str = Field(default="/data/auth.sqlite")
     redis_url: str = Field(default="redis://redis:6379/0")
 
@@ -189,6 +185,12 @@ class Settings(BaseSettings):
 
     # Token-Layer (PQC-32 / TOK-1, PQC-33 / TOK-2)
     token: TokenConfig = Field(default_factory=TokenConfig)
+
+    # Argon2-Layer (PQC-28 / AUT-1)
+    argon2: Argon2Config = Field(default_factory=Argon2Config)
+
+    # Database-Layer (PQC-28 / AUT-1)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
 
     @classmethod
     def settings_customise_sources(  # type: ignore[override]
@@ -199,11 +201,6 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """Reihenfolge: env > .env > YAML > Defaults im Modell.
-
-        Pydantic resolved tuples in der angegebenen Prioritaets-Reihenfolge,
-        wobei der erste Eintrag die hoechste Prioritaet hat.
-        """
         yaml_path_str = os.environ.get(_CONFIG_FILE_ENV)
         yaml_path = Path(yaml_path_str) if yaml_path_str else _default_config_yaml()
         return (
@@ -217,5 +214,4 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Cached Settings-Singleton. ``get_settings.cache_clear()`` resettet in Tests."""
     return Settings()
