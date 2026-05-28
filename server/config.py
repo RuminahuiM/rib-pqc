@@ -1,6 +1,6 @@
 """Configuration loading fuer den Auth-Service.
 
-Stories: PQC-19 (SKL-1) AC-2, PQC-21 (CRY-1) AC-4.
+Stories: PQC-19 (SKL-1) AC-2, PQC-21 (CRY-1) AC-4, PQC-32/33 (TOK-1/TOK-2).
 
 Lade Settings in folgender Reihenfolge (von schwach nach stark):
   1. Defaults im ``Settings``-Modell (pydantic-Default-Werte)
@@ -128,6 +128,34 @@ class CryptoConfig(BaseModel):
     signature: SignatureConfig = Field(default_factory=SignatureConfig)
 
 
+# ---------------------------------------------------------------------------
+# Token-Config (PQC-32 / TOK-1, erweitert in PQC-33 / TOK-2)
+# ---------------------------------------------------------------------------
+
+
+class TokenConfig(BaseModel):
+    """Konfiguration fuer Broker-Token-Issuance und -Verifikation."""
+
+    # iss-Claim im Token-Payload. Separat vom internen app_name, damit ein
+    # Rebrand des Service-Namens nicht alle bereits ausgestellten Tokens
+    # ungueltig macht. Default matched Design 5.1.
+    issuer: str = Field(default="pqc-auth-service")
+    # Token-Time-to-Live in Sekunden. Default 1 Stunde wie Design-Beispiel.
+    ttl_seconds: int = Field(default=3600, ge=1)
+    # PQC-33 (TOK-2) AC-6: Allowlist erlaubter Signatur-Algorithmen im
+    # JWS-Header. case-insensitive Vergleich beim Verify. RFC 8725 BCP
+    # Schutz gegen alg-confusion und alg=none. Default ein einziger Eintrag
+    # passend zum Crypto-Default. Bei Migration zu z.B. ML-DSA-87 koennen
+    # parallel beide alg fuer eine Uebergangs-Phase zugelassen werden, ohne
+    # Code-Deploy.
+    allowed_algs: list[str] = Field(default_factory=lambda: ["ML-DSA-65"])
+    # PQC-33 (TOK-2) AC-3: Clock-Skew-Tolerance fuer exp-Check. 30s als
+    # Best-Practice-Sweet-Spot (Curity-Empfehlung) statt 60s OpenID-Default,
+    # weil Container mit NTP-Sync typisch <5s Drift hat. Wird NICHT auf iat
+    # angewendet (Replay-Schutz).
+    exp_leeway_seconds: int = Field(default=30, ge=0)
+
+
 class Settings(BaseSettings):
     """Typsichere Settings, geladen aus YAML, .env und Environment."""
 
@@ -158,6 +186,9 @@ class Settings(BaseSettings):
 
     # Crypto-Layer (PQC-21 / CRY-1)
     crypto: CryptoConfig = Field(default_factory=CryptoConfig)
+
+    # Token-Layer (PQC-32 / TOK-1, PQC-33 / TOK-2)
+    token: TokenConfig = Field(default_factory=TokenConfig)
 
     @classmethod
     def settings_customise_sources(  # type: ignore[override]

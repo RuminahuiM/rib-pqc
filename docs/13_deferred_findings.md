@@ -123,3 +123,74 @@ eingegrenzt). Vier neue Tier-2-Findings F-020 bis F-024:
 - F-022: verify-result-Logging (Info, mit F-021 zusammen)
 - F-023: Multi-Kid-Rotation (Sprint 3 Polish)
 - F-024: Typed app.state-Helper (bei PQC-30)
+
+
+## Findings aus PQC-32 (TOK-1) Code-Review am 28.05.2026
+
+Story war Broker-Token-Ausstellung im JWS-Compact-Format mit ML-DSA-65.
+Acceptance Criteria 1-5 alle in Live-Container-Demo verifiziert. Eine
+Should-Finding hat einen klaren Story-Trigger (PQC-33 TOK-2 AC-Erweiterung),
+die uebrigen Tier-2-Polish.
+
+### Tier-1 (haben oder bekommen Jira-Story)
+
+| ID | Titel | Severity | Trigger | Jira | Status |
+|---|---|---|---|---|---|
+| F-028 | alg-Allowlist-Check (RFC 8725 BCP gegen alg-confusion und alg=none) | Should | direkt in PQC-33 (TOK-2) AC aufnehmen | [PQC-33](https://rumidesigns.atlassian.net/browse/PQC-33) | to-add-to-PQC-33-AC |
+
+### Tier-2 (Polish, Code-Hygiene, keine eigene Story)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-025 | `AuthMethod` Literal deklariert aber `issue()` nutzt `str` plus Runtime-Whitelist | Info | bei naechstem Touch von token_service.py | open |
+| F-026 | `sub`-Claim wird auf INFO-Level pro Issue geloggt (Privacy plus Volume bei AUT-3) | Should | vor PQC-30, mit F-021 buendeln | open |
+| F-027 | Kein `jti` (JWT ID) im Token, RFC 8725 BCP empfiehlt fuer Replay-Protection | May | vor produktiver Demo wenn Replay-Risiko relevant | open |
+| F-029 | `python -c "from main import app"` ohne TestClient triggert FastAPI-Lifespan nicht. docker-exec-Demos brauchen TestClient-Wrapper oder manuelle Lifespan-Rekonstruktion. | Info | Memory-Update in pqc-demo-convention | open (auch Tier 3) |
+| F-030 | server/README.md erwaehnt das neue `services/`-Subpackage noch nicht | Info | Sprint 4 Doku-Polish, mit F-011/F-019 buendeln | open |
+
+### Historie-Update 28.05.2026
+
+PQC-32 Closing-Review: 6 neue Findings F-025 bis F-030. Highlights:
+- **F-028 (Tier 1):** TOK-2 (PQC-33) muss alg-Allowlist haben. Wird beim PQC-33-
+  Story-Start als zusaetzlicher AC eingebaut (RFC 8725 BCP-Konformitaet). Auch
+  als Tier-2-Notiz hier, damit Doku-Spur erhalten bleibt.
+- **F-026 (Should):** sub-Logging auf INFO-Level. Bei TOK-1 noch low-volume,
+  aber bei AUT-3 wird Token-Ausstellung hochfrequent. Zusammen mit F-021
+  (sign/verify INFO-Level) als Bundle vor PQC-30 angehen.
+- **F-029 (Tier 3):** Lessons-Learned aus Demo-Verifikation - das
+  `from main import app` Anti-Pattern wandert ins Memory der Demo-Konvention.
+
+
+## Findings aus PQC-33 (TOK-2) Code-Review am 28.05.2026
+
+Story war Broker-Token-Verifikation mit RFC 8725 BCP alg-Allowlist.
+F-028 wurde als AC-6 in die Story-Description integriert und ist mit der
+Story selber resolved. Acceptance Criteria 1 bis 6 alle live im Container
+verifiziert (7 Verify-Szenarien). 3 neue Tier-2-Polish-Findings.
+
+### Tier-1 (haben oder bekommen Jira-Story)
+
+(keine neuen Tier-1-Findings)
+
+### Tier-2 (Polish, Code-Hygiene, keine eigene Story)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-031 | verify-Errors werden nicht als Audit-Log-Event geloggt; nur der Caller sieht die Exception. Bei AUT-3 Login-Versuche ist Forensik-Logging wertvoll | Should | vor PQC-30, mit F-021/F-026 als Logging-Bundle | open |
+| F-032 | verify validiert `iat` nicht ("Token nicht in der Zukunft"-Plausibilitaets-Check fehlt). RFC 7519 sagt iat optional, RFC 8725 empfiehlt Sanity-Check | Info | Sprint 3 Polish | open |
+| F-033 | `typ`-Header wird beim Verify nicht geprueft. Wenn vorhanden, sollte gegen `"JWT"` matchen | Info | Sprint 3 Polish, mit F-032 buendeln | open |
+
+### F-028 als resolved markieren
+
+| F-028 (war Tier 1, Should) | alg-Allowlist-Check (RFC 8725 BCP) | resolved (PQC-33, als AC-6 implementiert: `_VALID_TOKEN_CHARS`-Filter, case-insensitive Allowlist, expliziter none-Block) |
+
+### Historie-Update 28.05.2026 (PQC-33 abends)
+
+PQC-33 Closing-Review: F-028 in der Story selbst resolved (als AC-6
+implementiert), 3 neue Tier-2-Findings F-031 bis F-033. Highlights:
+- **F-031 (Should):** Audit-Logging fuer Verify-Errors fehlt. Bundle mit
+  F-021 (sign/verify INFO Frequenz) und F-026 (sub-Logging) ergibt ein
+  konsistentes "Logging-Hardening"-Paket vor PQC-30.
+- **F-032 plus F-033 (Info):** Sprint-3-Polish, optional. Aktueller Code
+  ist RFC-konform aber nicht maximal-streng. Wuerde bei einem strengen
+  Audit-Penetration-Test wahrscheinlich nicht durchfallen.

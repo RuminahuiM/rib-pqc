@@ -64,6 +64,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY main.py config.py logging_config.py config.yaml ./
 COPY routers ./routers
 COPY crypto ./crypto
+COPY services ./services
 
 # Schritt 5: Projekt selbst registrieren (ueber pyproject.toml).
 RUN --mount=type=cache,target=/root/.cache/uv \

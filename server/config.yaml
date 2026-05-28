@@ -47,7 +47,7 @@ crypto:
     default: "ML-DSA-65"
     # PQC-25 (CRY-5) AC-5: Key-Persistierung.
     # In Dev wird beim ersten Service-Start auto-keygen plus save gemacht.
-    # In Production muss ein vorgegenerierter Key im Volume liegen.
+    # In Production muss ein vorgenerierter Key im Volume liegen.
     private_key_path: "/data/keys/auth_signing_key.bin"
     public_key_path: "/data/keys/auth_signing_key.pub"
     # PQC-25 Review K-3: explizites Flag fuer Auto-Keygen in Dev. In Production-
@@ -56,3 +56,21 @@ crypto:
     # PQC-22 (CRY-2): kid den die Facade in ``sign``-Antworten mitliefert und
     # bei ``verify`` zum Public-Key-Lookup nutzt.
     signing_kid: "auth-signing-key-v1"
+
+# Token-Layer (Story PQC-32 / TOK-1, erweitert in PQC-33 / TOK-2).
+# Broker-Token-Ausstellung und -Verifikation im JWS-Compact-Format mit ML-DSA-65.
+token:
+  # iss-Claim. Identifiziert den Aussteller des Tokens fuer Empfaenger.
+  # Bewusst nicht an app_name gebunden (Rename-Resistenz).
+  issuer: "pqc-auth-service"
+  # Time-to-Live in Sekunden (exp = iat + ttl_seconds).
+  ttl_seconds: 3600
+  # PQC-33 AC-6: Allowlist erlaubter alg-Werte beim Verify (case-insensitive).
+  # RFC 8725 BCP Schutz gegen alg-confusion plus alg=none. Liste statt String
+  # damit Algorithmus-Migration in einer Uebergangs-Phase parallel beide
+  # zulassen kann.
+  allowed_algs:
+    - "ML-DSA-65"
+  # PQC-33 AC-3: Clock-Skew-Toleranz bei exp-Check. 30s ist konservativer
+  # Best-Practice-Sweet-Spot fuer NTP-synchronisierte Container.
+  exp_leeway_seconds: 30

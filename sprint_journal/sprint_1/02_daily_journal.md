@@ -93,7 +93,7 @@ Bei PQC-25 wurde anfangs die Done-Transition vor dem Senior-Closing-Review gemac
 
 > Reminder vom SM: an diesem Tag im Daily Journal explizit prüfen, wo der Critical Path steht. Wenn INF-3, SKL-1 und CRY-1 nicht done sind: Scope-Cut-Entscheidung sofort (INF-4 streichen, SKL-2 streichen, Test-Coverage minimieren auf nur Auth-Module).
 
-**Critical-Path-Stand (9 Highest-Stories):**
+**Critical-Path-Stand zum Halbzeit-Check (Vormittag, 9 Highest-Stories):**
 
 - PQC-17 (INF-3) Done am 24.05.
 - PQC-19 (SKL-1) Done am 25.05.
@@ -103,7 +103,41 @@ Bei PQC-25 wurde anfangs die Done-Transition vor dem Senior-Closing-Review gemac
 
 4 von 9 Critical-Path-Stories Done, alle drei kritischen Foundation-Stories (INF-3, SKL-1, CRY-1) erfüllt. Der SM-Reminder zur Scope-Cut-Entscheidung trifft also nicht ein, kein Scope-Cut nötig.
 
-**Sprint-Cumulative (Done in Sprint 1):**
+**Tatsächlich erreicht (Strategie-Session 27.05 Nachmittag):**
+
+Dokumentation der Implementation-Session vom 25.05, Risk Register R-T01 von Active auf Mitigated, Backlog-Markdown um Epic SEC plus 5 SEC-Stories (PQC-78 plus PQC-79 bis PQC-83) erweitert, Sprint-Zwischenstand und Zeit-Tracking-Tabelle aktualisiert.
+
+**Tatsächlich erreicht (Implementation-Session 27.05 Abend, Senior-Engineer-Modus):**
+
+Zwei substantielle Stories in einem Mittwoch-Slot. Damit klettert der Sprint von 4 Done auf 5 Done plus 1 In Review.
+
+- **PQC-22 (CRY-2): Crypto-Facade für sign/verify — Done.** CryptoFacade als zentrale sign/verify-Abstraktion in `server/crypto/facade.py`. Konstruktor-Validierung (signing_kid muss in verifying_keys_by_kid), KEM-Methoden als explizite NotImplementedError mit Verweis auf PQC-23. 11 Tests, 10 mit echtem ML-DSA-65-Round-Trip. F-015 in der Story selbst gelöst (enge Exception-Klausel). 4 neue Tier-2-Findings F-020 bis F-024.
+- **PQC-32 (TOK-1): Broker-Token-Ausstellung mit ML-DSA-65 — In Review.** TokenService in `server/services/token_service.py` (188 Zeilen). JWS-Compact (RFC 7515) mit ML-DSA-65 (FIPS 204). TokenConfig in config.py und yaml (issuer, ttl_seconds). Singleton via Lifespan in app.state.token_service, DI gegen CryptoFacade. 14 Tests, AC-1 bis AC-5 alle in Live-Container-Demo verifiziert. Federated-Token (Google) plus Tamper-Detection live demonstriert. 5 Tier-2-Findings F-025 bis F-030, davon F-028 als Tier-1-Should der direkt in PQC-33 AC einfliesst (RFC 8725 alg-Allowlist). Wartet auf explizites User-OK für Done-Transition gemäss harter Workflow-Regel.
+
+**Demos erstellt in dieser Session:**
+
+- D-001 Crypto-Foundation Demo (integriert PQC-21 plus PQC-25 plus PQC-22). Nachgereicht.
+- D-002 Broker-Token-Ausstellung (integriert PQC-22 plus PQC-25 plus PQC-32). Live ausgeführt.
+
+Beide Demos liegen in `demos/` mit reproduzierbaren docker-exec-Outputs und Mentor-Hinweisen.
+
+**Findings-Tracking-Stand (`../../docs/13_deferred_findings.md`):**
+
+- Total 30 Findings (F-001 bis F-030).
+- 5 resolved: F-010, F-015, K-3 plus F-001 bis F-005 sind als Jira-SEC-Stories überführt worden.
+- 1 neuer Tier-1-Eintrag F-028: fliesst in PQC-33 (TOK-2) AC ein.
+
+**Process-Konventionen etabliert in dieser Session (sessionsübergreifend in Memory abgelegt):**
+
+- **HARTE WORKFLOW-REGEL** für Stories: To Do → In Progress → In Review → Done, mit explizitem User-OK vor der Done-Transition. Konsequenz aus den Premature-Done-Fehlern bei PQC-25 und PQC-22.
+- **Phase 8 Demo-Check** in der Story-Closing-Review-Procedure (nach jedem Story-Done explizit prüfen ob Demo-Trigger erreicht ist).
+- **Demo-Konvention (neu):** D-NNN-Marker-System mit Screenshot-Naming und Trigger-Liste (Sprint-Goal-Meilenstein, Mentor-Termin, Session-Ende). Plus F-029-Lesson: TestClient-Pattern für Lifespan-Demos, `from main import app` allein triggert Lifespan nicht.
+
+**Process-Beobachtung (Selbstkritik aus dem Implementation-Chat):**
+
+Auch bei PQC-22 wurde anfangs der Done-Transition-Versuch vor dem Closing-Review gemacht (gleiche Lesson wie PQC-25 in der Vor-Session). Das war der direkte Trigger die HARTE WORKFLOW-REGEL ins Memory aufzunehmen.
+
+**Sprint-Cumulative (Stand Mittwoch Abend, ohne PQC-32):**
 
 | Story | SP | Done am | Tatsächlich |
 |---|---|---|---|
@@ -111,17 +145,19 @@ Bei PQC-25 wurde anfangs die Done-Transition vor dem Senior-Closing-Review gemac
 | PQC-19 SKL-1 | 2 | 25.05 | 1h 30m |
 | PQC-21 CRY-1 | 5 | 25.05 | 30 Min |
 | PQC-25 CRY-5 | 5 | 25.05 | 45 Min |
-| **Summe** | **17 SP** | | **3h 25m** |
+| PQC-22 CRY-2 | 3 | 27.05 | 45 Min |
+| **Summe Done** | **20 SP** | | **4h 10m** |
+| PQC-32 TOK-1 (In Review) | 5 | wartet auf OK | 60 Min |
 
-Sprint hatte 41 SP Must geplant. 17 SP Done bedeutet 41% Sprint-Fortschritt. Restliche Arbeitstage: Sa 30.05 und So 31.05 (zwei Wochenend-Tage). Mit Sprint-Multiplier-Trend (3h 25m für Stories die klassisch 22h gekostet hätten = aggregierter Multiplier 6.4x) sind weitere 24 SP in zwei Wochenend-Tagen plausibel.
+20 SP Done bedeutet 49% Sprint-Fortschritt. Mit PQC-32 wären es 25 SP (61%). Restliche Arbeitstage: Sa 30.05 und So 31.05 (zwei Wochenend-Tage). Aggregierter Sprint-Multiplier bisher: 27h klassisch geschätzt für die 5 Done-Stories, 4h 10m tatsächlich = 6.5x.
 
-**Heute geplant (Strategie-Session, dieser Eintrag):**
+**Blocker / offene Fragen:** PQC-32 wartet auf explizites User-OK für Done-Transition. Empfehlung Implementation-Chat: PQC-33 (TOK-2) als nächste Story mit F-028 als zusätzlichem AC (RFC 8725 alg-Allowlist).
 
-Dokumentation der Implementation-Session vom 25.05, Risk Register R-T01 von Active auf Mitigated, Backlog-Markdown um Epic SEC plus 5 SEC-Stories ergänzen, Sprint-Zwischenstand und Zeit-Tracking aktualisieren.
+**Arbeitszeit Mittwoch 27.05 total:**
 
-**Blocker / offene Fragen:** Keine.
-
-**Arbeitszeit Strategie-Session 27.05:** wird am Ende dieses Tags ergänzt.
+- Strategie-Session (Nachmittag): ca. 1h (Doku-Pflege).
+- Implementation-Session (Abend): 1h 45m (PQC-22 45m plus PQC-32 60m).
+- Plus Doku-Session heute am Donnerstag 28.05 (diese Pflege): ca. 30 Min.
 
 ---
 
@@ -141,8 +177,8 @@ Dokumentation der Implementation-Session vom 25.05, Risk Register R-T01 von Acti
 | PQC-19 SKL-1 | Done (25.05) | FastAPI plus structlog plus pydantic-settings. Evidence in `evidence/PQC-19_SKL-1_fastapi_skeleton.md`. 5 Tier-1-Findings als SEC-Stories ausgelagert (PQC-79 bis PQC-83). |
 | PQC-21 CRY-1 | Done (25.05) | CryptoRegistry mit Protocol-Plugin-System für KEM und Signature. Evidence in `evidence/PQC-21_CRY-1_algorithm_registry.md`. |
 | PQC-25 CRY-5 | Done (25.05) | liboqs-python ML-DSA-65. Echte FIPS-204-Sizes (1952/4032 Bytes). Evidence in `evidence/PQC-25_CRY-5_liboqs_ml_dsa.md`. R-T01 mitigated. |
-| PQC-22 CRY-2 | | |
-| PQC-32 TOK-1 | | |
+| PQC-22 CRY-2 | Done (27.05) | CryptoFacade sign/verify mit ML-DSA-65, 11 Tests, 10 Round-Trip. Evidence: `evidence/PQC-22_CRY-2_crypto_facade.md` (falls vom Implementation-Chat angelegt). F-015 in Story gefixt, 4 neue Tier-2-Findings F-020 bis F-024. |
+| PQC-32 TOK-1 | In Review (27.05) | TokenService 188 Zeilen, JWS-Compact mit ML-DSA-65, 14 Tests, Live-Container-Demo (D-002). Wartet auf explizites User-OK gemäss harter Workflow-Regel. F-028 fliesst in PQC-33 AC ein. |
 | PQC-28 AUT-1 | | |
 | PQC-29 AUT-2 | | |
 | PQC-30 AUT-3 | | |
@@ -169,8 +205,8 @@ Dokumentation der Implementation-Session vom 25.05, Risk Register R-T01 von Acti
 | PQC-19 SKL-1 | S | 2 | 3.0 | 1h 30m (1.5 h) | 2.0x | FastAPI plus structlog plus pydantic-settings Boilerplate, plus Senior-Closing-Review mit 20 Findings (5 als Jira-SEC-Stories, 13 als Tier-2 in `13_deferred_findings.md`). Review-Aufwand erklärt warum Multiplier moderater als bei PQC-17 oder PQC-21. |
 | PQC-21 CRY-1 | M | 5 | 7.0 | 30 Min (0.5 h) | 14.0x | Protocol-Plugin-System ohne externe Library. Architektur war klar (Pattern bekannt), reine Code-Generierung. Outlier-Spitze, vermutlich nicht reproduzierbar bei Stories mit Crypto-Logik oder I/O-Interaktion. |
 | PQC-25 CRY-5 | M | 5 | 7.0 | 45 Min (0.75 h) | 9.33x | liboqs-python Wrapper für ML-DSA-65. Dockerfile-Erweiterung plus Adapter-Code. Build-Zeit ca. 5 Min ist in den 45 Min nicht enthalten (passive Zeit). R-T01 (liboqs-Build-Risiko) mitigated. Initial K-3 als Should-Finding im Review entdeckt, in Phase 6 nachgefixt. |
-| PQC-22 CRY-2 | | | | | | |
-| PQC-32 TOK-1 | | | | | | |
+| PQC-22 CRY-2 | S | 3 | 3.0 | 45 Min (0.75 h) | 4.0x | CryptoFacade sign/verify. Klare Abhängigkeit von PQC-21 und PQC-25 die schon standen. F-015 (enge Exception-Klausel) in der Story gefixt, plus 4 Tier-2-Findings F-020 bis F-024. Closing-Review verlief sauber, einziger Bruch in der Prozedur: Done-Transition zuerst versucht bevor Review komplett war (gleicher Fehler wie PQC-25, triggerte die HARTE WORKFLOW-REGEL ins Memory). |
+| PQC-32 TOK-1 | M | 5 | 7.0 | 60 Min (1.0 h) | 7.0x | TokenService mit JWS-Compact und ML-DSA-65 (FIPS 204). 188 Zeilen Production-Code, 14 Tests, Live-Container-Demo (D-002 mit Federated Google Token plus Tamper-Detection). Status In Review, wartet auf User-OK für Done-Transition. F-028 (RFC 8725 alg-Allowlist) als Tier-1-Should fliesst direkt in PQC-33 AC ein. |
 | PQC-28 AUT-1 | | | | | | |
 | PQC-29 AUT-2 | | | | | | |
 | PQC-30 AUT-3 | | | | | | |
@@ -182,14 +218,16 @@ Dokumentation der Implementation-Session vom 25.05, Risk Register R-T01 von Acti
 | PQC-18 INF-4 | | | | | | |
 | PQC-20 SKL-2 | | | | | | |
 
-**Sprint-Aggregat (Zwischenstand 27.05 Mittwoch, wird beim Sprint Review final aktualisiert):**
+**Sprint-Aggregat (Zwischenstand 27.05 Mittwoch Abend, wird beim Sprint Review final aktualisiert):**
 
-- Done in Sprint 1 bisher: 4 Stories, 17 SP.
-- Summe geschätzte Stunden (klassisch ohne AI, für die 4 Done-Stories): 7+3+7+7 = 24 h.
-- Summe tatsächliche Stunden mit AI: 0.67 + 1.5 + 0.5 + 0.75 = 3.42 h (3h 25m).
-- Aggregierter Sprint-Multiplier bisher: 24 / 3.42 = 7.0x.
+- Done in Sprint 1 bisher: 5 Stories, 20 SP. Plus 1 In Review (PQC-32, 5 SP).
+- Summe geschätzte Stunden (klassisch ohne AI, für die 5 Done-Stories): 7+3+7+7+3 = 27 h.
+- Summe tatsächliche Stunden mit AI für Done-Stories: 0.67 + 1.5 + 0.5 + 0.75 + 0.75 = 4.17 h (4h 10m).
+- Aggregierter Sprint-Multiplier bisher (nur Done-Stories): 27 / 4.17 = 6.5x.
+- Falls PQC-32 mit gerechnet wird: (27+7) / (4.17+1.0) = 34 / 5.17 = 6.6x.
 - Aufschlüsselung nach Story-Typ:
   - Infrastructure (INF-3): 10.5x.
   - Skeleton (SKL-1): 2.0x.
-  - Crypto (CRY-1, CRY-5): 14.0x, 9.33x → Mittel 11.7x für Foundation-Crypto ohne Algorithm-Verifikation.
-- Beobachtung: Die hohen Multiplier sind teils auf reine Code-Generation-Stories zurückzuführen (CRY-1) und auf Carry-Over mit klarer Spec (INF-3). Bei den noch ausstehenden Stories mit echter Crypto-Interaktion (CRY-2 Crypto-Facade, AUT-3 Login-Endpoint) erwarte ich Multiplier eher im 2x bis 4x Bereich. Aggregierter Multiplier am Sprint-Ende vermutlich unter 7x.
+  - Crypto (CRY-1, CRY-5, CRY-2): 14.0x, 9.33x, 4.0x → Mittel 9.1x für Foundation-Crypto.
+  - Token (TOK-1 In Review): 7.0x.
+- Beobachtung Stand Tag 3: Die CRY-2-Story zeigt den ersten Multiplier-Knick nach unten (4.0x statt 10x+ bei den ersten drei Crypto-Stories), weil hier erstmals echte Validation-Logik und Test-Coverage gefragt war. TOK-1 mit 7.0x ist trotz JWS-Komplexität noch hoch, vermutlich weil die Crypto-Foundation drunter schon stand. Bei den ausstehenden Auth-Stories (AUT-1 SQLAlchemy, AUT-3 Login-Endpoint mit Passwort-Hashing und Validation) erwarte ich Multiplier wieder eher im 2x bis 4x Bereich. Aggregierter Sprint-Multiplier am Ende voraussichtlich 4x bis 5x.

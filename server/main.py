@@ -36,6 +36,7 @@ from crypto.registry import CryptoRegistry
 from crypto.registry_init import init_crypto_registry
 from logging_config import get_logger, setup_logging
 from routers import health
+from services.token_service import TokenService
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -184,10 +185,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         verifying_kids=sorted({settings.crypto.signature.signing_kid}),
     )
 
+    # PQC-32 (TOK-1): TokenService als Singleton im App-Lifecycle. Stellt
+    # Broker-Tokens im JWS-Compact-Format mit ML-DSA-65-Signatur aus. Die
+    # CryptoFacade wird per Dependency-Injection uebergeben, der TokenService
+    # selber kennt keine Crypto-Implementierungs-Details.
+    token_service = TokenService(
+        crypto_facade=facade,
+        issuer=settings.token.issuer,
+        ttl_seconds=settings.token.ttl_seconds,
+        allowed_algs=settings.token.allowed_algs,
+        exp_leeway_seconds=settings.token.exp_leeway_seconds,
+    )
+    logger.info(
+        "token.service.initialized",
+        issuer=settings.token.issuer,
+        ttl_seconds=settings.token.ttl_seconds,
+        allowed_algs=settings.token.allowed_algs,
+        exp_leeway_seconds=settings.token.exp_leeway_seconds,
+    )
+
     # State im App-Lifecycle ablegen.
     app.state.settings = settings
     app.state.crypto_registry = registry
     app.state.crypto_facade = facade
+    app.state.token_service = token_service
     app.state.signing_public_key = public_key
     app.state.signing_secret_key = secret_key
     try:
