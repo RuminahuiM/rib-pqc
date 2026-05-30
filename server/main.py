@@ -37,7 +37,9 @@ from crypto.registry import CryptoRegistry
 from crypto.registry_init import init_crypto_registry
 from db.engine import create_engine_from_config, create_session_factory
 from logging_config import get_logger, setup_logging
-from middleware import RequestIdMiddleware
+from middleware import RequestIdMiddleware, SecurityHeadersMiddleware
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from routers import health
 from services.token_service import TokenService
 
@@ -251,10 +253,42 @@ def create_app() -> FastAPI:
     # Path oder Query hinzukommen (PQC-30 AUT-3), Access-Log-Filtering einrichten.
     # Siehe docs/13_deferred_findings.md (F-013) und Story-Start-Checklist.
 
-    # PQC-79 (SEC-1): Request-ID Middleware. Muss als ERSTE Middleware
-    # registriert sein, damit alle nachfolgenden Log-Events in ihrem Scope
-    # die request_id im structlog-Context haben. Schliesst Finding F-001.
+    # Middleware-Order (Code-Reihenfolge ist invers zum Request-Flow:
+    # last-added ist OUTERMOST). Geplante Request-Flow-Order:
+    #
+    #   Client -> TrustedHost -> CORS -> SecurityHeaders -> RequestId -> Endpoint
+    #
+    # - TrustedHost (outermost): early reject bei Host-Header-Injection
+    # - CORS: Preflight-OPTIONS-Handling, Allow-Origin-Check
+    # - SecurityHeaders: setzt defensive Response-Headers
+    # - RequestId (innermost): structlog-Context-Binding, alle anderen Logs
+    #   inkl. Endpoint sehen die request_id
+
+    # PQC-79 (SEC-1)
     app.add_middleware(RequestIdMiddleware)
+
+    # PQC-82 (SEC-4)
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        hsts_enabled=(settings.environment != "dev") and settings.security.headers.enabled,
+        hsts_max_age_seconds=settings.security.headers.hsts_max_age_seconds,
+        hsts_include_subdomains=settings.security.headers.hsts_include_subdomains,
+    )
+
+    # PQC-80 (SEC-2): CORS-Middleware. starlette built-in.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.security.cors.allowed_origins,
+        allow_methods=settings.security.cors.allowed_methods,
+        allow_headers=settings.security.cors.allowed_headers,
+        allow_credentials=settings.security.cors.allow_credentials,
+    )
+
+    # PQC-81 (SEC-3): TrustedHost outermost - rejected vor allem anderen.
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=settings.security.trusted_hosts,
+    )
 
     app.include_router(health.router)
     return app

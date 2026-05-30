@@ -95,3 +95,32 @@ database:
   async_url: "sqlite+aiosqlite:////data/auth.sqlite"
   sync_url: "sqlite:////data/auth.sqlite"
   echo: false
+
+# Security-Layer (PQC-80 SEC-2, PQC-81 SEC-3, PQC-82 SEC-4).
+security:
+  cors:
+    # CORS-Allowlist. KEINE Wildcards. allow_credentials=true erfordert
+    # explizite Origins (Browser-Security-Constraint).
+    allowed_origins:
+      - "http://localhost:8081"  # Expo Dev-Server
+      - "http://localhost:8080"  # nginx Reverse-Proxy
+    allowed_methods:
+      - "GET"
+      - "POST"
+      - "OPTIONS"
+    allowed_headers:
+      - "Authorization"
+      - "Content-Type"
+      - "X-Request-ID"
+    # Bearer-Token via Authorization-Header, kein Cookie-basierter Auth.
+    allow_credentials: false
+  # TrustedHost gegen Host-Header-Injection. 'testserver' fuer TestClient.
+  trusted_hosts:
+    - "localhost"
+    - "127.0.0.1"
+    - "auth-service"
+    - "testserver"
+  headers:
+    enabled: true
+    hsts_max_age_seconds: 31536000
+    hsts_include_subdomains: true

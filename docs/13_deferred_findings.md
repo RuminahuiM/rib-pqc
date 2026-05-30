@@ -264,3 +264,59 @@ Vor PQC-30 (AUT-3) als kleiner Refactor-Pass durchgezogen:
 
 **Restliche offene Logging-Findings:**
 - F-022 (verify-result True/False weiterhin geloggt): bewusst behalten, hilft bei Forensik (Side-Channel via Log-Aggregator ist Sprint-3-Polish wenn Real-Production-Deployment).
+
+
+## Findings aus PQC-79 (SEC-1) Code-Review am 30.05.2026
+
+Story war Request-ID Middleware mit structlog-Context. AC-1 bis AC-4 alle live
+im Container verifiziert. **F-001 als resolved markiert.**
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-043 | RequestIdMiddleware nutzt `BaseHTTPMiddleware` (anyio-Stream-Overhead). Pure ASGI-Middleware waere performanter | Info | Sprint 3 Polish bei Performance-Need | open |
+| F-044 | uvicorn-Access-Log-Event ist generisches String statt strukturiertes Event mit method/path/status/duration. Strukturierter Access-Log waere besser fuer Forensik | Info | Sprint 3 Polish, mit F-013 buendeln | open |
+
+### F-001 als resolved markiert
+
+| F-001 (war Tier 1, Should) | Request-ID Middleware | resolved (PQC-79, RequestIdMiddleware mit structlog-contextvars + X-Request-ID Header-Echo) |
+
+### Historie-Update 30.05.2026
+
+PQC-79 Closing-Review: F-001 erfolgreich resolved. 2 neue Tier-2-Info-Findings
+F-043/F-044 (Performance + strukturierter Access-Log). Lesson-Learned aus
+Live-Verifikation: explizites `unbind_contextvars` im Middleware-finally hat
+uvicorn-Access-Log-Context-Loss verursacht (Log wird post-middleware-return
+emittiert). Fix: kein manuelles unbind, ContextVar-Task-Isolation (PEP 567)
+nutzen.
+
+
+## Findings aus PQC-80/81/82 (SEC-2/3/4) Bundle-Review am 30.05.2026
+
+Bundle-Story: 3 SEC-Stories zusammen implementiert (CORS + TrustedHost +
+Security-Headers). Alle AC live im Container verifiziert. **F-002, F-003, F-004
+resolved.** SEC-5 (Rate-Limiting, PQC-83) bewusst Sprint-2-deferred wegen
+Redis-Komplexitaet, Threat-Model im Bericht prominent erwaehnen.
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-045 | SecurityHeadersMiddleware nutzt BaseHTTPMiddleware (analog F-043). Bei Performance-Need beide auf Pure-ASGI umstellen | Info | Sprint 3 Polish, mit F-043 buendeln | open |
+| F-046 | CSP nicht gesetzt - Swagger-UI auf /docs braucht relaxed CSP. Bei Production wenn /docs OFF: strict CSP moeglich | Info | Sprint 3 Polish, vor Production wenn /docs disabled | open |
+| F-047 | TrustedHost-Liste enthaelt `testserver` (FastAPI-TestClient-Default). Production-Config muss entfernen | Info | vor Production-Deployment | open |
+
+### F-002, F-003, F-004 als resolved markiert
+
+| F-002 (war Tier 1, Should) | CORS-Middleware | resolved (PQC-80, CORSMiddleware mit Allowlist + Pydantic-Validator gegen Wildcard+Credentials) |
+| F-003 (war Tier 1, Should) | TrustedHost-Middleware | resolved (PQC-81, TrustedHostMiddleware mit Allowlist) |
+| F-004 (war Tier 1, Should) | Security-Headers-Middleware | resolved (PQC-82, X-Content-Type-Options/X-Frame-Options/Referrer-Policy/HSTS-conditional) |
+
+### Historie-Update 30.05.2026 (SEC-Bundle)
+
+3 neue Tier-2-Info-Findings F-045-F-047 (alle Sprint-3-Polish). F-005 SEC-5
+Rate-Limiting bleibt offen, ist Sprint-2-Folge (Redis-Integration noetig). 
+
+Damit ist die HTTP-Hardening-Schicht zu 80% produktionsreif. PQC-30 (AUT-3)
+nicht mehr blocked durch SEC-1/2/3/4. SEC-5 ist Tier-1-deferred-aber-bekannt.

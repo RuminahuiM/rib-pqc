@@ -1,13 +1,7 @@
 """Configuration loading fuer den Auth-Service.
 
 Stories: PQC-19 SKL-1, PQC-21 CRY-1, PQC-25 CRY-5, PQC-22 CRY-2,
-PQC-32 TOK-1, PQC-33 TOK-2, PQC-28 AUT-1.
-
-Lade Settings in folgender Reihenfolge (von schwach nach stark):
-  1. Defaults im ``Settings``-Modell
-  2. Werte aus YAML-File (Pfad ueber ``RIB_CONFIG_FILE`` env, Default config.yaml)
-  3. Werte aus ``.env``-File
-  4. Environment-Variablen mit Praefix ``RIB_``
+PQC-32 TOK-1, PQC-33 TOK-2, PQC-28 AUT-1, PQC-79 SEC-1, PQC-80/81/82 SEC-2/3/4.
 """
 
 from __future__ import annotations
@@ -18,7 +12,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 LogLevel = Literal["debug", "info", "warning", "error", "critical"]
@@ -47,8 +41,6 @@ def _load_yaml_config(path: Path) -> dict[str, Any]:
 
 
 class YamlConfigSource(PydanticBaseSettingsSource):
-    """Pydantic-Settings-Source, die Werte aus einer YAML-Datei liest."""
-
     def __init__(self, settings_cls: type[BaseSettings], yaml_path: Path) -> None:
         super().__init__(settings_cls)
         self._yaml_data: dict[str, Any] = _load_yaml_config(yaml_path)
@@ -72,11 +64,6 @@ class YamlConfigSource(PydanticBaseSettingsSource):
         return {k: v for k, v in self._yaml_data.items() if v is not None}
 
 
-# ---------------------------------------------------------------------------
-# Crypto-Config (PQC-21 / CRY-1 AC-4)
-# ---------------------------------------------------------------------------
-
-
 class KemConfig(BaseModel):
     supported: list[str] = Field(default_factory=lambda: ["ML-KEM-768"])
     default: str = Field(default="ML-KEM-768")
@@ -96,39 +83,14 @@ class CryptoConfig(BaseModel):
     signature: SignatureConfig = Field(default_factory=SignatureConfig)
 
 
-# ---------------------------------------------------------------------------
-# Token-Config (PQC-32 / TOK-1, erweitert in PQC-33 / TOK-2)
-# ---------------------------------------------------------------------------
-
-
 class TokenConfig(BaseModel):
-    """Konfiguration fuer Broker-Token-Issuance und -Verifikation."""
-
     issuer: str = Field(default="pqc-auth-service")
     ttl_seconds: int = Field(default=3600, ge=1)
-    # PQC-33 AC-6: case-insensitive Allowlist (RFC 8725 BCP).
     allowed_algs: list[str] = Field(default_factory=lambda: ["ML-DSA-65"])
-    # PQC-33 AC-3: Clock-Skew-Toleranz fuer exp-Check, nicht iat.
     exp_leeway_seconds: int = Field(default=30, ge=0)
 
 
-# ---------------------------------------------------------------------------
-# Argon2-Config (PQC-28 / AUT-1 AC-4)
-# ---------------------------------------------------------------------------
-
-
 class Argon2Config(BaseModel):
-    """Argon2id-Parameter fuer Password-Hashing.
-
-    Story-AC-4 Default-Werte (m=64MB, t=3, p=4): sicherer als OWASP-2024-
-    Sweet-Spot, CPU/RAM-intensiver pro Hash (~250-500ms auf modernem Host).
-
-    Tuning-Hinweis: Falls Login zu langsam wirkt im realen Setup, koennen die
-    Werte ohne Code-Aenderung auf OWASP-2024 reduziert werden (z.B.
-    memory_cost_kb=46000, time_cost=1, parallelism=1). Sicherheits-Tradeoff
-    vorab dokumentieren.
-    """
-
     memory_cost_kb: int = Field(default=65536, ge=8)
     time_cost: int = Field(default=3, ge=1)
     parallelism: int = Field(default=4, ge=1)
@@ -136,22 +98,59 @@ class Argon2Config(BaseModel):
     hash_length: int = Field(default=32, ge=16)
 
 
-# ---------------------------------------------------------------------------
-# Database-Config (PQC-28 / AUT-1 AC-2, AC-3)
-# ---------------------------------------------------------------------------
-
-
 class DatabaseConfig(BaseModel):
-    """Async-Database-Konfiguration (SQLAlchemy 2.0 + aiosqlite).
-
-    Application nutzt async_url (aiosqlite-Treiber).
-    Alembic nutzt sync_url (Standard sqlite3-Treiber) fuer Migrations.
-    Beide URLs zeigen typisch auf dieselbe Datei, nur Treiber unterscheidet.
-    """
-
     async_url: str = Field(default="sqlite+aiosqlite:////data/auth.sqlite")
     sync_url: str = Field(default="sqlite:////data/auth.sqlite")
     echo: bool = Field(default=False)
+
+
+class CorsConfig(BaseModel):
+    """CORS-Allowlist (PQC-80 SEC-2)."""
+
+    allowed_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:8081",
+            "http://localhost:8080",
+        ]
+    )
+    allowed_methods: list[str] = Field(
+        default_factory=lambda: ["GET", "POST", "OPTIONS"]
+    )
+    allowed_headers: list[str] = Field(
+        default_factory=lambda: ["Authorization", "Content-Type", "X-Request-ID"]
+    )
+    allow_credentials: bool = Field(default=False)
+
+    @model_validator(mode="after")
+    def _validate_no_wildcard_with_credentials(self) -> "CorsConfig":
+        """PQC-80 AC-3: Wildcard mit allow_credentials=True ist Browser-Spec-Violation."""
+        if self.allow_credentials and "*" in self.allowed_origins:
+            msg = (
+                "CORS-Misconfig: allow_credentials=True ist inkompatibel mit "
+                "Wildcard '*' in allowed_origins (Browser-Spec). Setze konkrete "
+                "Origins oder allow_credentials=False."
+            )
+            raise ValueError(msg)
+        return self
+
+
+class SecurityHeadersConfig(BaseModel):
+    enabled: bool = Field(default=True)
+    hsts_max_age_seconds: int = Field(default=31536000, ge=0)
+    hsts_include_subdomains: bool = Field(default=True)
+
+
+class SecurityConfig(BaseModel):
+    cors: CorsConfig = Field(default_factory=CorsConfig)
+    trusted_hosts: list[str] = Field(
+        default_factory=lambda: [
+            "localhost",
+            "127.0.0.1",
+            "auth-service",
+            "testserver",
+        ]
+    )
+    headers: SecurityHeadersConfig = Field(default_factory=SecurityHeadersConfig)
 
 
 class Settings(BaseSettings):
@@ -164,33 +163,23 @@ class Settings(BaseSettings):
         env_nested_delimiter="__",
     )
 
-    # Identitaet
     app_name: str = Field(default="rib-pqc-auth-service")
     version: str = Field(default="0.1.0")
     environment: Environment = Field(default="dev")
 
-    # HTTP-Server
     host: str = Field(default="0.0.0.0")  # noqa: S104
     port: int = Field(default=8000, ge=1, le=65535)
 
-    # Logging
     log_level: LogLevel = Field(default="info")
 
-    # Datenspeicher (Legacy-Felder, durch DatabaseConfig schrittweise abgeloest)
     sqlite_path: str = Field(default="/data/auth.sqlite")
     redis_url: str = Field(default="redis://redis:6379/0")
 
-    # Crypto-Layer (PQC-21 / CRY-1)
     crypto: CryptoConfig = Field(default_factory=CryptoConfig)
-
-    # Token-Layer (PQC-32 / TOK-1, PQC-33 / TOK-2)
     token: TokenConfig = Field(default_factory=TokenConfig)
-
-    # Argon2-Layer (PQC-28 / AUT-1)
     argon2: Argon2Config = Field(default_factory=Argon2Config)
-
-    # Database-Layer (PQC-28 / AUT-1)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
 
     @classmethod
     def settings_customise_sources(  # type: ignore[override]
