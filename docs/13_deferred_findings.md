@@ -32,7 +32,7 @@ Dependency) und zu `11_risk_register.md` (Tier 2 fuer echte Projekt-Risiken).
 | F-002 | CORS-Middleware nicht konfiguriert | Should | vor PQC-30 | [PQC-80](https://rumidesigns.atlassian.net/browse/PQC-80) | tracked-in-jira |
 | F-003 | TrustedHost-Middleware nicht konfiguriert | Should | vor PQC-30 | [PQC-81](https://rumidesigns.atlassian.net/browse/PQC-81) | tracked-in-jira |
 | F-004 | Security-Headers-Middleware fehlt | Should | vor PQC-30 | [PQC-82](https://rumidesigns.atlassian.net/browse/PQC-82) | tracked-in-jira |
-| F-005 | Rate-Limiting-Infrastruktur fehlt | Should | vor PQC-30, spaetestens vor produktiver Demo | [PQC-83](https://rumidesigns.atlassian.net/browse/PQC-83) | tracked-in-jira |
+| F-005 | Rate-Limiting-Infrastruktur fehlt | Should | vor PQC-30, spaetestens vor produktiver Demo | [PQC-83](https://rumidesigns.atlassian.net/browse/PQC-83) | resolved (PQC-83, 2026-05-30) |
 
 ### Tier-2 (Polish, Code-Hygiene, keine eigene Story)
 
@@ -320,3 +320,59 @@ Rate-Limiting bleibt offen, ist Sprint-2-Folge (Redis-Integration noetig).
 
 Damit ist die HTTP-Hardening-Schicht zu 80% produktionsreif. PQC-30 (AUT-3)
 nicht mehr blocked durch SEC-1/2/3/4. SEC-5 ist Tier-1-deferred-aber-bekannt.
+
+aber-mit-Plan und wird in Sprint-1-Endspurt als naechste Story angegangen
+(Annahme: Redis-Service ist via PQC-17-Compose-Setup schon vorhanden, also
+keine Infra-Hurde).
+
+
+## Findings aus PQC-83 (SEC-5) Code-Review am 30.05.2026
+
+PQC-83 implementiert Rate-Limiting via slowapi + Redis. AC-1 bis AC-5 live
+verifiziert. Im Phase-1-Audit ein **HIGH-Severity-Finding** (F-048) entdeckt
+und direkt in derselben Story gefixt: ohne uvicorn `proxy_headers=True` und
+`forwarded_allow_ips` ist `request.client.host` immer die nginx-Container-IP,
+was Per-IP-Limit faktisch zu einem Per-Cluster-Limit macht (alle externen
+Clients teilen einen Bucket). Fix war 3 Zeilen in `main.py._run()`, live mit
+2 unterschiedlichen X-Forwarded-For-Werten verifiziert.
+
+### Tier-1 (resolved-in-story)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-048 | Per-IP-Limit war faktisch Per-Cluster (request.client.host = nginx-IP ohne uvicorn proxy_headers) | High | sofort in PQC-83 | resolved (PQC-83, uvicorn `proxy_headers=True, forwarded_allow_ips="172.16.0.0/12"`) |
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-049 | Doppel-Logging `rate_limit.registered` beim Startup (uvicorn re-importiert main:app -> create_app() laeuft 2x) | Info | Sprint 4 Image-Slim oder vor Bericht-Abgabe | open (Fix: uvicorn.run mit App-Instanz statt String-Pfad, oder bewusst akzeptieren als Side-Effect des FastAPI/uvicorn-Patterns) |
+
+### F-005 als resolved markiert
+
+| F-005 (war Tier 1, Should) | Rate-Limiting-Infrastruktur | resolved (PQC-83, slowapi + Redis + Per-IP + 5/15min Login + 60/min Global + 429-Format mit Retry-After) |
+
+### Historie-Update 30.05.2026 (PQC-83)
+
+F-005 resolved. F-048 HIGH in Phase-1-Audit gefunden und in-story gefixt.
+F-049 als Tier-2-Polish offen. Sprint-1 Endspurt-Story PQC-83 abgeschlossen,
+damit ist die komplette SEC-Schicht (SEC-1 bis SEC-5) erledigt und PQC-30
+hatte alle benoetigten Schutzlayer im Stack.bgeschlossen.
+
+
+## Findings aus PQC-63 (QUA-1) Code-Review am 30.05.2026
+
+PQC-63 fuehrt formales Pytest-Setup ein mit conftest.py + pytest-cov +
+HTML-Coverage-Reports. AC-1 bis AC-4 alle gruen. 104 Tests passed in der
+Sandbox, 4 skipped (liboqs-Sandbox-Skips). Sandbox-Coverage 57%, in Docker
+mit liboqs erwartet 70-75%.
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-050 | `main.py`, `routers/health.py`, `routers/dev_test.py` haben 0% Unit-Test-Coverage (nur Live-Tests im Docker). Lifespan-Hook ist schwer testbar, aber routers koennten mit TestClient saubere Unit-Tests bekommen | Info | Sprint 4 Polish, vor Bericht-Abgabe | open |
+
+### Historie-Update 30.05.2026 (PQC-63)
+
+Pytest-Setup formal abgeschlossen. F-050 als Tier-2-Polish offen.

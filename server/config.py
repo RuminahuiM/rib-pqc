@@ -140,6 +140,27 @@ class SecurityHeadersConfig(BaseModel):
     hsts_include_subdomains: bool = Field(default=True)
 
 
+class RateLimitConfig(BaseModel):
+    """Rate-Limiting (PQC-83 SEC-5).
+
+    Per-IP via slowapi mit Redis-Storage. Defaults:
+    - global: 60/minute (AC-2)
+    - login: 5/15minutes (OWASP-strenger als AC-3-Vorschlag 5/minute,
+      explizite Senior-Decision)
+
+    Production-Hardening: Per-Email-Composite-Key als Sprint-3-Polish gegen
+    distributed Brute-Force aus Botnets. Aktuell Per-IP only (DoS-Risiko
+    durch Account-Lockout vermieden).
+    """
+
+    enabled: bool = Field(default=True)
+    global_default: str = Field(default="60/minute")
+    login_limit: str = Field(default="5/15minutes")
+    # slowapi nutzt limits-Lib mit redis/memory Storage-Backend.
+    # storage_uri: "redis://redis:6379/1" fuer Container, "memory://" fuer Tests.
+    storage_uri: str = Field(default="redis://redis:6379/1")
+
+
 class SecurityConfig(BaseModel):
     cors: CorsConfig = Field(default_factory=CorsConfig)
     trusted_hosts: list[str] = Field(
@@ -151,6 +172,7 @@ class SecurityConfig(BaseModel):
         ]
     )
     headers: SecurityHeadersConfig = Field(default_factory=SecurityHeadersConfig)
+    rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
 
 
 class Settings(BaseSettings):

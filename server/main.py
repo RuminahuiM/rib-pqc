@@ -28,6 +28,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from auth.password import PasswordHasher
 from config import get_settings
@@ -37,10 +39,12 @@ from crypto.registry import CryptoRegistry
 from crypto.registry_init import init_crypto_registry
 from db.engine import create_engine_from_config, create_session_factory
 from logging_config import get_logger, setup_logging
-from middleware import RequestIdMiddleware, SecurityHeadersMiddleware
-from starlette.middleware.cors import CORSMiddleware
-from starlette.middleware.trustedhost import TrustedHostMiddleware
-from routers import auth, health
+from middleware import (
+    RequestIdMiddleware,
+    SecurityHeadersMiddleware,
+    register_rate_limit,
+)
+from routers import auth, dev_test, health
 from services.token_service import TokenService
 
 if TYPE_CHECKING:
@@ -264,6 +268,10 @@ def create_app() -> FastAPI:
     # - RequestId (innermost): structlog-Context-Binding, alle anderen Logs
     #   inkl. Endpoint sehen die request_id
 
+    # PQC-83 (SEC-5): Rate-Limiting. Module-level Limiter Singleton aus
+    # middleware.rate_limit. SlowAPIMiddleware wird hier registriert.
+    register_rate_limit(app)
+
     # PQC-79 (SEC-1)
     app.add_middleware(RequestIdMiddleware)
 
@@ -293,6 +301,9 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     # PQC-30 (AUT-3) + PQC-31 (AUT-4): Auth-Router
     app.include_router(auth.router)
+    # PQC-83 (SEC-5) AC-5: Dev-only Rate-Limit-Test-Endpoint
+    if settings.environment == "dev":
+        app.include_router(dev_test.router)
     return app
 
 
@@ -301,7 +312,20 @@ app = create_app()
 
 
 def _run() -> None:
-    """Entry-Point fuer ``python main.py`` und Docker-CMD."""
+    """Entry-Point fuer ``python main.py`` und Docker-CMD.
+
+    PQC-83 SEC-5 Closing-Review F-048: ``proxy_headers=True`` und
+    ``forwarded_allow_ips`` so setzen, dass uvicorn die ``X-Forwarded-For``-
+    Header vom davorgelagerten nginx (Docker-Bridge-Range 172.16.0.0/12)
+    auswertet und ``request.client.host`` auf die echte Client-IP setzt.
+    Ohne diesen Fix waere ``get_remote_address`` immer die nginx-Container-IP
+    und das Rate-Limit wuerde *alle* externen Clients in *einen* Bucket
+    zwingen (Per-Cluster statt Per-IP).
+
+    Hinweis fuer Production-Deployment (Sprint 2 PQC-15 TLS-Story): in einer
+    echten Umgebung sollte ``forwarded_allow_ips`` auf eine konkrete IP oder
+    eine schmale CIDR-Range eingeschraenkt werden, niemals auf ``"*"``.
+    """
     import uvicorn
 
     settings = get_settings()
@@ -310,6 +334,8 @@ def _run() -> None:
         host=settings.host,
         port=settings.port,
         log_config=None,
+        proxy_headers=True,
+        forwarded_allow_ips="172.16.0.0/12",
     )
 
 

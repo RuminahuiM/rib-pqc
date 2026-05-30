@@ -124,3 +124,13 @@ security:
     enabled: true
     hsts_max_age_seconds: 31536000
     hsts_include_subdomains: true
+  # PQC-83 (SEC-5): Rate-Limit Settings. storage_uri zeigt auf eine eigene
+  # Redis-DB-Nummer (1) damit Rate-Limit-Counter und Session-Daten (DB 0)
+  # nicht im selben Keyspace kollidieren. login_limit ist OWASP-konform
+  # (5/15min per IP), global_default ist eine konservative Obergrenze fuer
+  # alle uebrigen Endpoints. enabled=false zum Test-Bypass setzbar.
+  rate_limit:
+    enabled: true
+    global_default: "60/minute"
+    login_limit: "5/15minutes"
+    storage_uri: "redis://redis:6379/1"

@@ -34,8 +34,10 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.password import PasswordHasher
+from config import get_settings
 from db.repositories import UserRepository
 from logging_config import get_logger
+from middleware.rate_limit import limiter
 from services.token_service import TokenService
 
 _logger = get_logger("rib_pqc.auth.login")
@@ -123,10 +125,18 @@ _INVALID_CREDENTIALS_DETAIL = "invalid_credentials"
             "model": ErrorResponse,
             "description": "Email oder Passwort falsch (identisch fuer beide Faelle)",
         },
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "description": (
+                "Rate-Limit ueberschritten. PQC-83 SEC-5: 5 Login-Versuche pro 15 Minuten "
+                "pro IP. Response enthaelt Retry-After-Header."
+            ),
+        },
     },
     summary="Lokaler Login mit Email/Passwort",
 )
+@limiter.limit(get_settings().security.rate_limit.login_limit)
 async def local_login(
+    request: Request,
     payload: LoginRequest,
     repo: Annotated[UserRepository, Depends(get_user_repository)],
     hasher: Annotated[PasswordHasher, Depends(get_password_hasher)],
