@@ -40,7 +40,7 @@ from logging_config import get_logger, setup_logging
 from middleware import RequestIdMiddleware, SecurityHeadersMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from routers import health
+from routers import auth, health
 from services.token_service import TokenService
 
 if TYPE_CHECKING:
@@ -291,6 +291,8 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    # PQC-30 (AUT-3) + PQC-31 (AUT-4): Auth-Router
+    app.include_router(auth.router)
     return app
 
 

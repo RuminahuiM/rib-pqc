@@ -122,7 +122,7 @@ class CorsConfig(BaseModel):
     allow_credentials: bool = Field(default=False)
 
     @model_validator(mode="after")
-    def _validate_no_wildcard_with_credentials(self) -> "CorsConfig":
+    def _validate_no_wildcard_with_credentials(self) -> CorsConfig:
         """PQC-80 AC-3: Wildcard mit allow_credentials=True ist Browser-Spec-Violation."""
         if self.allow_credentials and "*" in self.allowed_origins:
             msg = (
