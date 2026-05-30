@@ -157,7 +157,70 @@ Auch bei PQC-22 wurde anfangs der Done-Transition-Versuch vor dem Closing-Review
 
 - Strategie-Session (Nachmittag): ca. 1h (Doku-Pflege).
 - Implementation-Session (Abend): 1h 45m (PQC-22 45m plus PQC-32 60m).
-- Plus Doku-Session heute am Donnerstag 28.05 (diese Pflege): ca. 30 Min.
+- Plus Doku-Session am Donnerstag 28.05 für 27.05-Eintrag: ca. 30 Min.
+
+---
+
+## 2026-05-28 (Tag 4 im Sprint, Donnerstag) — Abweichung vom Standard-Schedule
+
+> Hinweis: Donnerstag ist laut Standard-Arbeitsrhythmus kein Projekt-Tag. Diese Session ist eine bewusste Ausnahme (Donnerstag-Lang-Slot, Abend bis spät), motiviert durch den nahenden Sprint-Endtermin am 30.05 und die Möglichkeit den Sprint-Goal (End-to-End-Login) noch zu erreichen.
+
+**Gestern fertig (27.05):** PQC-22 (CRY-2) Done, PQC-32 (TOK-1) funktional fertig und In Review.
+
+**Tatsächlich erreicht (Implementation-Session 28.05 Abend, Senior-Engineer-Modus):**
+
+Vier Stories in einer Langen Session. Eine davon (PQC-32) war seit gestern In Review und wartete auf das User-OK. Heute auf Done transitioniert nach explizitem OK. Drei weitere Stories neu implementiert.
+
+- **PQC-32 (TOK-1): Broker-Token-Ausstellung — Done.** Heute auf Done transitioniert nach explizitem User-OK gemäss harter Workflow-Regel. 60 Min Implementation-Zeit am 27.05 plus weitere 60 Min am 28.05 für Senior-Decisions, Live-Verifikation und Closing-Review-Diskussion. Total 2h User-Zeit auf der Story.
+- **PQC-33 (TOK-2): Broker-Token-Verifikation (RFC 8725 BCP) — Done.** RFC 8725 BCP konform: alg-Allowlist case-insensitive, none-Block, 30s exp-Leeway. Live-Container 7 Verify-Szenarien grün. F-028 aus PQC-32-Review als AC-6 integriert und in dieser Story resolved. 30 Min Implementation. Demo D-003 (Broker-Token Verify-Pipeline) als Sprint-Goal-Meilenstein erstellt.
+- **PQC-28 (AUT-1): User-Store SQLAlchemy 2.0 plus Argon2id — Done.** SQLAlchemy 2.0 async plus aiosqlite plus Alembic-Migrations. Auto-Migration im Container-CMD (idempotent). User-Model mit lowercase email und nullable password_hash. Argon2id mit OWASP-konformen Defaults (m=64MB/t=3/p=4). Live-Verify gegen echten Container. 60 Min Implementation.
+- **PQC-29 (AUT-2): Admin-CLI für User-Provisioning — In Review.** OWASP-konform: getpass-Prompt default, --password-stdin für Scripting, kein --password als argv (verhindert Shell-History, ps-Leak und Container-Log-Leak). 30 Min Implementation. Wartet auf explizites User-OK für Done-Transition.
+
+**Major Architectural Milestones aus dieser Session:**
+
+- Broker-Token-Pipeline funktional vollständig: JWS-Compact mit ML-DSA-65, RFC 8725 BCP konform, 7 Verify-Szenarien grün im Live-Container. Sprint-Goal in Sichtweite.
+- Persistenz-Schicht eingeführt (PQC-28): SQLAlchemy 2.0 async, aiosqlite, Alembic-Migrations mit Auto-Migration im Container-CMD.
+- Argon2id mit OWASP-konformen Defaults: m=64MB, t=3, p=4. Live-Verifikation funktioniert.
+- Admin-CLI OWASP-konform für Credential-Handling (kein --password-argv).
+
+**Demos in dieser Session:**
+
+- D-002 wiederholt (Sprint-Goal-Bestätigung).
+- D-003 Broker-Token Verify-Pipeline (Sprint-Goal-Meilenstein, integriert PQC-22 plus PQC-32 plus PQC-33). Liegt in `demos/`.
+- Geplant nach AUT-3 plus AUT-4: D-004 Local Login Pipeline.
+
+**Bewusste Spec-Updates in Jira (mit Begründung):**
+
+- PQC-33 AC-6 ergänzt: RFC 8725 BCP alg-Allowlist. Direkt aus F-028 PQC-32-Review eingeflossen.
+- PQC-29 AC-1 Pfad-Update: `auth_service.admin` → `admin`, weil die Server-Struktur flach ist (kein auth_service-Subpackage). Jira-Description entsprechend angepasst.
+
+**Findings-Tracking-Stand (`../../docs/13_deferred_findings.md`):**
+
+- Total 42 Findings (F-001 bis F-042). Heute neu:
+  - PQC-32 Review: F-025 bis F-030 (6 neue, F-028 als Tier-1 in PQC-33 integriert).
+  - PQC-33 Review: F-031 bis F-033 (3 neue, F-028 resolved).
+  - PQC-28 Review: F-034 bis F-039 (5 neue, F-036 als Duplikat von F-012 entfallen).
+  - PQC-29 Review: F-040 bis F-042 (3 neue, alle Info-Polish).
+- Bundle-Vorschläge für nächste Sessions:
+  - Logging-Hardening-Bundle (vor PQC-30 angehen): F-021, F-026, F-031, F-034.
+  - Sprint-3-Polish-Bundle: F-027, F-032, F-033, F-039 (Pepper), F-040, F-041, F-042.
+
+**Code-Stats heute:**
+
+- 4 neue Production-Module: `services/token_service.py` (388 Zeilen final), `models/user.py`, `db/engine.py`, `db/repositories/user_repository.py`, `auth/password.py`, `admin.py`.
+- 5 neue Config-Felder: `token.allowed_algs`, `token.exp_leeway_seconds`, plus komplette Argon2Config und DatabaseConfig.
+- 1 Alembic-Migration (initial users table).
+- Ca. 120 neue Tests. Total Sandbox-Stand: 65 passed plus 3 skipped (liboqs).
+
+**Blocker / offene Fragen:**
+
+- PQC-29 wartet auf explizites User-OK für Done-Transition.
+- Atlassian-MCP in dieser Session disconnected: Worklogs für PQC-33, PQC-28, PQC-29 und Done-Comments stehen aus, müssen beim nächsten Connect nachgepflegt werden.
+
+**Arbeitszeit Donnerstag 28.05 total:**
+
+- Implementation- und Closing-Review-Arbeit (Abend bis spät): 3h total (PQC-32 Closing-Review 60m plus PQC-33 30m plus PQC-28 60m plus PQC-29 30m).
+- Doku-Pflege im Strategie-Chat (dieser Eintrag): ca. 20 Min.
 
 ---
 
@@ -178,11 +241,11 @@ Auch bei PQC-22 wurde anfangs der Done-Transition-Versuch vor dem Closing-Review
 | PQC-21 CRY-1 | Done (25.05) | CryptoRegistry mit Protocol-Plugin-System für KEM und Signature. Evidence in `evidence/PQC-21_CRY-1_algorithm_registry.md`. |
 | PQC-25 CRY-5 | Done (25.05) | liboqs-python ML-DSA-65. Echte FIPS-204-Sizes (1952/4032 Bytes). Evidence in `evidence/PQC-25_CRY-5_liboqs_ml_dsa.md`. R-T01 mitigated. |
 | PQC-22 CRY-2 | Done (27.05) | CryptoFacade sign/verify mit ML-DSA-65, 11 Tests, 10 Round-Trip. Evidence: `evidence/PQC-22_CRY-2_crypto_facade.md` (falls vom Implementation-Chat angelegt). F-015 in Story gefixt, 4 neue Tier-2-Findings F-020 bis F-024. |
-| PQC-32 TOK-1 | In Review (27.05) | TokenService 188 Zeilen, JWS-Compact mit ML-DSA-65, 14 Tests, Live-Container-Demo (D-002). Wartet auf explizites User-OK gemäss harter Workflow-Regel. F-028 fliesst in PQC-33 AC ein. |
-| PQC-28 AUT-1 | | |
-| PQC-29 AUT-2 | | |
+| PQC-32 TOK-1 | Done (28.05) | TokenService 388 Zeilen final, JWS-Compact mit ML-DSA-65, 14 Tests, Live-Container-Demo (D-002). Funktional fertig am 27.05, auf Done transitioniert am 28.05 nach User-OK. |
+| PQC-28 AUT-1 | Done (28.05) | SQLAlchemy 2.0 async plus aiosqlite plus Alembic. User-Model, Argon2id (m=64MB/t=3/p=4 OWASP). Auto-Migration im Container-CMD. |
+| PQC-29 AUT-2 | In Review (28.05) | Admin-CLI OWASP-konform (getpass plus --password-stdin, kein --password-argv). Wartet auf explizites User-OK. |
 | PQC-30 AUT-3 | | |
-| PQC-33 TOK-2 | | |
+| PQC-33 TOK-2 | Done (28.05) | Token-Verifikation RFC 8725 BCP, 7 Verify-Szenarien grün. F-028 als AC-6 integriert und resolved. Demo D-003 Sprint-Goal-Meilenstein. |
 | PQC-31 AUT-4 | | |
 | PQC-63 QUA-1 | | |
 | PQC-64 QUA-2 | | |
@@ -206,7 +269,10 @@ Auch bei PQC-22 wurde anfangs der Done-Transition-Versuch vor dem Closing-Review
 | PQC-21 CRY-1 | M | 5 | 7.0 | 30 Min (0.5 h) | 14.0x | Protocol-Plugin-System ohne externe Library. Architektur war klar (Pattern bekannt), reine Code-Generierung. Outlier-Spitze, vermutlich nicht reproduzierbar bei Stories mit Crypto-Logik oder I/O-Interaktion. |
 | PQC-25 CRY-5 | M | 5 | 7.0 | 45 Min (0.75 h) | 9.33x | liboqs-python Wrapper für ML-DSA-65. Dockerfile-Erweiterung plus Adapter-Code. Build-Zeit ca. 5 Min ist in den 45 Min nicht enthalten (passive Zeit). R-T01 (liboqs-Build-Risiko) mitigated. Initial K-3 als Should-Finding im Review entdeckt, in Phase 6 nachgefixt. |
 | PQC-22 CRY-2 | S | 3 | 3.0 | 45 Min (0.75 h) | 4.0x | CryptoFacade sign/verify. Klare Abhängigkeit von PQC-21 und PQC-25 die schon standen. F-015 (enge Exception-Klausel) in der Story gefixt, plus 4 Tier-2-Findings F-020 bis F-024. Closing-Review verlief sauber, einziger Bruch in der Prozedur: Done-Transition zuerst versucht bevor Review komplett war (gleicher Fehler wie PQC-25, triggerte die HARTE WORKFLOW-REGEL ins Memory). |
-| PQC-32 TOK-1 | M | 5 | 7.0 | 60 Min (1.0 h) | 7.0x | TokenService mit JWS-Compact und ML-DSA-65 (FIPS 204). 188 Zeilen Production-Code, 14 Tests, Live-Container-Demo (D-002 mit Federated Google Token plus Tamper-Detection). Status In Review, wartet auf User-OK für Done-Transition. F-028 (RFC 8725 alg-Allowlist) als Tier-1-Should fliesst direkt in PQC-33 AC ein. |
+| PQC-32 TOK-1 | M | 5 | 7.0 | 2h (1h Impl 27.05 + 1h Closing-Review 28.05) | 3.5x | TokenService mit JWS-Compact und ML-DSA-65 (FIPS 204). 388 Zeilen final (nach PQC-33-Verify-Integration), 14 Tests, Live-Container-Demo (D-002 mit Federated Google Token plus Tamper-Detection). Closing-Review-Aufwand erklärt warum Multiplier unter den anderen Token-Stories liegt, das ist der erste echte Datenpunkt zum Closing-Review-Anteil pro Story. |
+| PQC-33 TOK-2 | S | 2 | 3.0 | 30 Min (0.5 h) | 6.0x | Broker-Token-Verifikation, RFC 8725 BCP konform (alg-Allowlist case-insensitive, none-Block, 30s exp-Leeway). 7 Verify-Szenarien grün im Live-Container. F-028 als AC-6 in dieser Story integriert und resolved. Demo D-003 als Sprint-Goal-Meilenstein. |
+| PQC-28 AUT-1 | M | 5 | 7.0 | 60 Min (1.0 h) | 7.0x | SQLAlchemy 2.0 async, aiosqlite, Alembic-Migrations mit Auto-Migration. User-Model, Argon2id OWASP-Defaults. Erste Story mit DB-Persistenz, deshalb erwartungsgemäss höherer Aufwand. Trotz neuer Schicht-Einführung kein Multiplier-Knick weil Foundation-Pattern (Repository, async-Engine) bekannt sind. |
+| PQC-29 AUT-2 | S | 2 | 3.0 | 30 Min (0.5 h) | 6.0x | Admin-CLI für User-Provisioning. OWASP-konform (kein --password-argv, getpass plus stdin). AC-1 Pfad-Update im Jira (auth_service.admin → admin) wegen flacher Server-Struktur. Status In Review, wartet auf User-OK. |
 | PQC-28 AUT-1 | | | | | | |
 | PQC-29 AUT-2 | | | | | | |
 | PQC-30 AUT-3 | | | | | | |
@@ -218,16 +284,29 @@ Auch bei PQC-22 wurde anfangs der Done-Transition-Versuch vor dem Closing-Review
 | PQC-18 INF-4 | | | | | | |
 | PQC-20 SKL-2 | | | | | | |
 
-**Sprint-Aggregat (Zwischenstand 27.05 Mittwoch Abend, wird beim Sprint Review final aktualisiert):**
+**Sprint-Aggregat (Zwischenstand 28.05 Donnerstag Abend, korrigiert nach Jira-Worklog-Verifikation 29.05):**
 
-- Done in Sprint 1 bisher: 5 Stories, 20 SP. Plus 1 In Review (PQC-32, 5 SP).
-- Summe geschätzte Stunden (klassisch ohne AI, für die 5 Done-Stories): 7+3+7+7+3 = 27 h.
-- Summe tatsächliche Stunden mit AI für Done-Stories: 0.67 + 1.5 + 0.5 + 0.75 + 0.75 = 4.17 h (4h 10m).
-- Aggregierter Sprint-Multiplier bisher (nur Done-Stories): 27 / 4.17 = 6.5x.
-- Falls PQC-32 mit gerechnet wird: (27+7) / (4.17+1.0) = 34 / 5.17 = 6.6x.
+- Done in Sprint 1 bisher: 8 Stories, 32 SP. Plus 1 In Review (PQC-29 AUT-2, 2 SP).
+- Summe geschätzte Stunden (klassisch ohne AI, für die 8 Done-Stories): 7+3+7+7+3+7+3+7 = 44 h.
+- Summe tatsächliche Stunden mit AI für Done-Stories: 0.67 + 1.5 + 0.5 + 0.75 + 0.75 + 2.0 + 0.5 + 1.0 = 7.67 h (7h 40m).
+- Aggregierter Sprint-Multiplier bisher (nur Done-Stories): 44 / 7.67 = **5.74x**.
+- Falls PQC-29 mit gerechnet wird (S=3h, 0.5h tatsächlich): 47 / 8.17 = **5.75x**.
+- Sprint-Fortschritt: 32 SP von 41 SP geplanten Must-Stories = **78% Done**. Mit PQC-29 In Review: 83%.
 - Aufschlüsselung nach Story-Typ:
   - Infrastructure (INF-3): 10.5x.
   - Skeleton (SKL-1): 2.0x.
   - Crypto (CRY-1, CRY-5, CRY-2): 14.0x, 9.33x, 4.0x → Mittel 9.1x für Foundation-Crypto.
-  - Token (TOK-1 In Review): 7.0x.
-- Beobachtung Stand Tag 3: Die CRY-2-Story zeigt den ersten Multiplier-Knick nach unten (4.0x statt 10x+ bei den ersten drei Crypto-Stories), weil hier erstmals echte Validation-Logik und Test-Coverage gefragt war. TOK-1 mit 7.0x ist trotz JWS-Komplexität noch hoch, vermutlich weil die Crypto-Foundation drunter schon stand. Bei den ausstehenden Auth-Stories (AUT-1 SQLAlchemy, AUT-3 Login-Endpoint mit Passwort-Hashing und Validation) erwarte ich Multiplier wieder eher im 2x bis 4x Bereich. Aggregierter Sprint-Multiplier am Ende voraussichtlich 4x bis 5x.
+  - Token (TOK-1, TOK-2): 3.5x, 6.0x → Mittel 4.75x für Token-Services.
+  - Auth (AUT-1): 7.0x. AUT-2 (In Review) 6.0x.
+- Beobachtung Stand Tag 4: Korrektur nach Jira-Verifikation zeigt einen wichtigen Daten-Punkt: PQC-32 hat tatsächlich 2h gekostet (1h Implementation plus 1h Closing-Review-Arbeit am nächsten Tag). Damit liegt der TOK-1-Multiplier bei 3.5x statt 7.0x. Das ist konsistent mit der Beobachtung dass je nach Erfassungs-Granularität (nur Coding-Zeit vs Coding-plus-Review-Zeit) der Multiplier deutlich variiert. Für die finale Auswertung im Schlussbericht wichtig: konsistent Coding-plus-Review-Zeit erfassen.
+- Erwartung Sprint-Ende: aggregierter Multiplier um 5x bis 6x, deutlich höher als initial angenommen (1.5x), aber tiefer als das vorläufige 6.6x das vor der PQC-32-Korrektur stand.
+
+**Sprint-Goal-Stand (End-to-End-Login):**
+
+Konkrete Restbedarf für Sprint-Goal:
+- Test-User via Admin-CLI angelegt: PQC-29 (In Review, fast da).
+- POST `/auth/local/login` mit Email plus Passwort: PQC-30 (AUT-3, offen, 5 SP M).
+- ML-DSA-65-signierter Broker-Token zurück: PQC-32 Done.
+- Verifizierbar mit Public Key: PQC-33 Done.
+
+Sprint-Goal ist mit PQC-29-Closure plus PQC-30 vollständig erreichbar. Realistisch in 1 bis 2 verbleibenden Arbeitstagen (Sa 30.05, So 31.05).
