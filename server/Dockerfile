@@ -68,6 +68,7 @@ COPY services ./services
 COPY models ./models
 COPY db ./db
 COPY auth ./auth
+COPY middleware ./middleware
 COPY alembic ./alembic
 
 # Schritt 5: Projekt selbst registrieren (ueber pyproject.toml).

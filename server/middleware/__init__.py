@@ -1,0 +1,14 @@
+"""HTTP-Middleware-Module fuer den rib-pqc Auth-Service.
+
+Stories:
+- PQC-79 (SEC-1): Request-ID Middleware.
+
+Spaetere Sprint-Stories ergaenzen CORS (SEC-2), TrustedHost (SEC-3),
+Security-Headers (SEC-4), Rate-Limit (SEC-5).
+"""
+
+from __future__ import annotations
+
+from middleware.request_id import RequestIdMiddleware
+
+__all__ = ["RequestIdMiddleware"]

@@ -37,6 +37,7 @@ from crypto.registry import CryptoRegistry
 from crypto.registry_init import init_crypto_registry
 from db.engine import create_engine_from_config, create_session_factory
 from logging_config import get_logger, setup_logging
+from middleware import RequestIdMiddleware
 from routers import health
 from services.token_service import TokenService
 
@@ -249,8 +250,15 @@ def create_app() -> FastAPI:
     # TODO(F-013): Bevor `routers.auth` oder andere Endpoints mit Email/Password im
     # Path oder Query hinzukommen (PQC-30 AUT-3), Access-Log-Filtering einrichten.
     # Siehe docs/13_deferred_findings.md (F-013) und Story-Start-Checklist.
+
+    # PQC-79 (SEC-1): Request-ID Middleware. Muss als ERSTE Middleware
+    # registriert sein, damit alle nachfolgenden Log-Events in ihrem Scope
+    # die request_id im structlog-Context haben. Schliesst Finding F-001.
+    app.add_middleware(RequestIdMiddleware)
+
     app.include_router(health.router)
     return app
+
 
 
 app = create_app()
