@@ -246,9 +246,13 @@ class TokenService:
         signature_b64 = _b64url_encode(signature)
         token = f"{header_b64}.{payload_b64}.{signature_b64}"
 
+        # PQC-30-Logging-Hardening (F-026): sub auf DEBUG (Privacy + Volume).
+        # INFO behaelt nur auth_method + external_sub_present (boolean) plus
+        # Token-Metadata. user_id ist bei AUT-3-Login-Frequenz too verbose auf
+        # INFO und ist Privacy-relevant. Bei Forensik via DB-Lookup vom kid+iat
+        # zu erreichen.
         self._logger.info(
             "token.issued",
-            sub=user_id,
             auth_method=auth_method,
             external_sub_present=external_sub is not None,
             alg=alg,
@@ -390,11 +394,12 @@ class TokenService:
             msg = "signature verification failed"
             raise InvalidSignatureError(msg)
 
-        # Erfolgs-Logging. sub-Logging ist Tier-2 F-026 (mit F-021 buendeln,
-        # vor PQC-30 auf DEBUG reduzieren).
+        # PQC-30-Logging-Hardening (F-026 resolved): sub-Claim entfernt aus
+        # INFO-Logging (Privacy + Volume bei AUT-3-Login-Frequenz). Erfolgs-
+        # verify bleibt INFO weil es Audit-relevant ist (Token-Nutzung), aber
+        # ohne user_id im Klartext. Bei Forensik via kid+iat-Lookup nachverfolgbar.
         self._logger.info(
             "token.verified",
-            sub=payload.get("sub"),
             auth_method=payload.get("auth_method"),
             external_sub_present=payload.get("external_sub") is not None,
             alg=alg,

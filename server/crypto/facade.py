@@ -113,7 +113,9 @@ class CryptoFacade:
         alg = self._default_signature_alg
         plugin = self._registry.get_signature(alg)
         signature = plugin.sign(payload, self._signing_secret_key)
-        self._logger.info(
+        # PQC-30-Logging-Hardening (F-021): DEBUG statt INFO, weil sign/verify
+        # bei AUT-3 hochfrequent ist und INFO-Volume sonst zu gross wird.
+        self._logger.debug(
             "crypto.facade.sign",
             purpose=purpose,
             alg=alg,
@@ -150,14 +152,28 @@ class CryptoFacade:
 
         plugin = self._registry.get_signature(alg)
         result = plugin.verify(payload, signature, public_key)
-        self._logger.info(
-            "crypto.facade.verify",
-            alg=alg,
-            kid=kid,
-            payload_len=len(payload),
-            signature_len=len(signature),
-            result=result,
-        )
+        # F-021 + F-031 Logging-Hardening: erfolgreicher Verify auf DEBUG
+        # (hochfrequent), failed verify auf WARNING (audit-forensik fuer
+        # Token-Manipulation-Versuche). F-022 (result True/False loggen) als
+        # bewusste Entscheidung behalten - hilft bei Forensik.
+        if result:
+            self._logger.debug(
+                "crypto.facade.verify",
+                alg=alg,
+                kid=kid,
+                payload_len=len(payload),
+                signature_len=len(signature),
+                result=result,
+            )
+        else:
+            self._logger.warning(
+                "crypto.facade.verify_failed",
+                alg=alg,
+                kid=kid,
+                payload_len=len(payload),
+                signature_len=len(signature),
+                reason="signature_invalid",
+            )
         return result
 
     # ----- KEM (PQC-22 AC-3: in dieser Story explizit NICHT implementiert) ---

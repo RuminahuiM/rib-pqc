@@ -249,3 +249,18 @@ Container verifiziert. 0 Must, 0 Tier-1, 3 neue Tier-2-Findings (alle Info).
 PQC-29 Closing-Review: alle Findings sind Info-Level Sprint-3-Polish-Items.
 Code ist sauber, CLI ist OWASP-konform (kein `--password <plain>` argv,
 getpass + stdin-Pipe). Keine Tier-1-Trigger.
+
+
+## Logging-Hardening-Refactor 28.05.2026 spaet abends
+
+Vor PQC-30 (AUT-3) als kleiner Refactor-Pass durchgezogen:
+
+| Finding | Vorher | Nachher | Status |
+|---|---|---|---|
+| F-021 | `crypto.facade.sign/verify` auf INFO | erfolgreich auf DEBUG, sign auf DEBUG, verify-failed auf WARNING mit reason | resolved |
+| F-026 | `token.issued/verified` mit `sub` im Payload | `sub` entfernt aus INFO-Logs, kid+iat fuer Forensik-Lookup | resolved |
+| F-031 | verify-Errors nicht als Audit-Event | Facade.verify_failed jetzt WARNING. TokenService-Exceptions werden vom Caller (AUT-3) als Audit-Event geloggt (Verantwortung bei der Endpoint-Schicht) | resolved (Tier-1-Hinweis fuer AUT-3) |
+| F-034 | email-Logging bei `user.created` | bewusste Entscheidung: NICHT loggen (Privacy-by-Design, user_id reicht fuer Forensik via DB-Lookup) | resolved (decision documented) |
+
+**Restliche offene Logging-Findings:**
+- F-022 (verify-result True/False weiterhin geloggt): bewusst behalten, hilft bei Forensik (Side-Channel via Log-Aggregator ist Sprint-3-Polish wenn Real-Production-Deployment).
