@@ -24,29 +24,39 @@ name: pqc
 services:
 
   # ----------------------------------------------------------------
-  # nginx - Reverse Proxy
-  # Sprint 1: stock nginx:1.27-alpine ohne TLS. INF-4 ersetzt das Image
-  # durch einen Custom-Build mit oqs-provider und schaltet TLS auf 443 frei.
+  # nginx - PQC-faehiger Reverse Proxy (Story PQC-18 INF-4)
+  # Custom Multi-Stage Build mit OpenSSL 3.5 + liboqs + oqs-provider + nginx 1.27.
+  # Aktiviert TLS 1.3 mit X25519MLKEM768 (Hybrid PQC) auf Port 443. Port 8080
+  # bleibt fuer den HTTP-Fallback (Sprint-1 Login-Flow ueber HTTP).
   # ----------------------------------------------------------------
   nginx:
-    image: nginx:1.27-alpine
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile.nginx
+    image: rib-pqc-nginx:0.1
     container_name: pqc-nginx
     restart: unless-stopped
     ports:
       - "${NGINX_HTTP_PORT:-8080}:80"
+      - "${NGINX_HTTPS_PORT:-8443}:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Master-nginx-Config mit HTTP (Port 80) + TLS (Port 443 mit X25519MLKEM768)
+      - ./nginx/nginx.conf:/opt/nginx/conf/nginx.conf:ro
     depends_on:
       auth-service:
         condition: service_healthy
     networks:
       - pqc-net
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/health"]
+      # Healthcheck nutzt die DockerFile-Default-Healthcheck (pgrep nginx +
+      # openssl list -providers | grep oqsprovider). Hier compose-Overlay mit
+      # zusaetzlichem /pqc-test-Test via openssl s_client moeglich, aber wir
+      # vertrauen dem Dockerfile-Healthcheck fuer den Standard-Lauf.
+      test: ["CMD-SHELL", "pgrep nginx >/dev/null && openssl list -providers 2>/dev/null | grep -q oqsprovider"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
-      start_period: 5s
+      start_period: 10s
 
   # ----------------------------------------------------------------
   # auth-service - FastAPI Skeleton (Story PQC-19 / SKL-1)

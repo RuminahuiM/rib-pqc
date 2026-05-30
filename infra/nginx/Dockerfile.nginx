@@ -1,0 +1,176 @@
+# Dockerfile.nginx fuer pqc-nginx Image (Story PQC-18 INF-4)
+#
+# Multi-Stage Source-Build adoptiert vom offiziellen oqs-demos/nginx Pattern:
+# https://github.com/open-quantum-safe/oqs-demos/blob/main/nginx/Dockerfile
+#
+# Stage 1 (build): Alpine 3.21 mit Build-Tools, baut OpenSSL 3.5.0 + liboqs
+#                  0.14.0 + oqs-provider 0.10.0 + nginx 1.27.x aus Source.
+# Stage 2 (runtime): schlankes Alpine-Image mit nur den fertigen Binaries.
+#
+# Story-Start-Hinweis: ursprünglich war FROM openquantumsafe/oqs-ossl3 vor-
+# gesehen, das stellte sich aber als nicht-Build-tauglich heraus (apk add
+# nginx wuerde gegen System-OpenSSL linken, nicht gegen oqs-OpenSSL). Daher
+# Source-Build wie in der oqs-demos-Referenz.
+
+ARG ALPINE_VERSION=3.21
+ARG OPENSSL_TAG=openssl-3.5.0
+ARG LIBOQS_TAG=0.14.0
+ARG OQSPROVIDER_TAG=0.10.0
+ARG NGINX_VERSION=1.27.5
+ARG BASEDIR="/opt"
+ARG INSTALLDIR=${BASEDIR}/nginx
+
+# Self-signed Cert mit ML-DSA-65 als Signature-Algorithmus (FIPS 204).
+# Sprint-1-Mittelweg: Test-Cert, kein Production-PKI.
+ARG SIG_ALG="mldsa65"
+
+# TLS-Groups: klassisch + hybrid PQC. X25519MLKEM768 ist der NIST-empfohlene
+# Hybrid-KEM fuer TLS 1.3 (RFC draft-ietf-tls-hybrid-design).
+ARG DEFAULT_GROUPS=x25519:x448:prime256v1:secp384r1:secp521r1:mlkem512:mlkem768:mlkem1024:X25519MLKEM768:SecP256r1MLKEM768
+
+# ---------------------------------------------------------------------------
+# Stage 1: Build - kompiliert OpenSSL, liboqs, oqs-provider, nginx
+# ---------------------------------------------------------------------------
+
+FROM alpine:${ALPINE_VERSION} AS intermediate
+ARG OPENSSL_TAG
+ARG LIBOQS_TAG
+ARG OQSPROVIDER_TAG
+ARG NGINX_VERSION
+ARG BASEDIR
+ARG INSTALLDIR
+ARG SIG_ALG
+ARG DEFAULT_GROUPS
+ARG OSSLDIR=${BASEDIR}/openssl/.openssl
+
+# Build-Toolchain installieren
+RUN apk update && apk --no-cache add \
+    build-base linux-headers libtool \
+    automake autoconf make cmake ninja \
+    openssl openssl-dev git wget pcre-dev
+
+# Sources clonen / herunterladen
+WORKDIR /opt
+RUN git clone --depth 1 --branch ${LIBOQS_TAG} https://github.com/open-quantum-safe/liboqs \
+    && git clone --depth 1 --branch ${OQSPROVIDER_TAG} https://github.com/open-quantum-safe/oqs-provider.git \
+    && git clone --depth 1 --branch ${OPENSSL_TAG} https://github.com/openssl/openssl.git \
+    && wget -q https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz \
+    && tar -zxf nginx-${NGINX_VERSION}.tar.gz \
+    && rm nginx-${NGINX_VERSION}.tar.gz
+
+# OpenSSL 3.5 selbst bauen (notwendig damit nginx dagegen linken kann)
+WORKDIR /opt/openssl
+RUN LDFLAGS="-Wl,-rpath -Wl,${OSSLDIR}/lib64" ./Configure \
+    shared linux-x86_64 \
+    --prefix="${OSSLDIR}" --openssldir="${OSSLDIR}/ssl" \
+    && make -j"$(nproc)" \
+    && make install_sw install_ssldirs
+# Hinweis: KEIN ``ln -sf lib lib64`` mehr. Frueher fuehrte das dazu dass
+# ``find ${OSSLDIR} -name ossl-modules`` zwei Pfade lieferte (echtes lib +
+# Symlink-Path lib64) und der nachfolgende ``cp $MODULESDIR`` mit Multi-Line-
+# Argument scheiterte. OpenSSL 3.5 auf Alpine installiert nur nach lib/, lib64
+# wird im Build nicht benoetigt.
+
+# liboqs (static, fuer oqs-provider)
+WORKDIR /opt/liboqs/build
+RUN cmake -G"Ninja" \
+    -DOQS_DIST_BUILD=ON \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_INSTALL_PREFIX="${INSTALLDIR}" .. \
+    && ninja -j"$(nproc)" && ninja install
+
+# nginx 1.27.x mit custom OpenSSL bauen.
+# --with-http_v2_module fuer HTTP/2-Support (PQC-43 TLS-1 Sprint-2 nice-to-have).
+WORKDIR /opt/nginx-${NGINX_VERSION}
+RUN ./configure --prefix=${INSTALLDIR} \
+    --with-debug --with-http_ssl_module --with-http_v2_module \
+    --with-openssl=/opt/openssl --without-http_gzip_module \
+    && make -j"$(nproc)" && make install
+
+# OpenSSL-Config so erweitern dass oqs-provider geladen wird und die
+# Default-Groups die PQC-Hybriden enthalten.
+RUN sed -i "s/default = default_sect/default = default_sect\noqsprovider = oqsprovider_sect/g" ${OSSLDIR}/ssl/openssl.cnf \
+    && sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[oqsprovider_sect\]\nactivate = 1\n/g" ${OSSLDIR}/ssl/openssl.cnf \
+    && sed -i "s/providers = provider_sect/providers = provider_sect\nssl_conf = ssl_sect\n\n\[ssl_sect\]\nsystem_default = system_default_sect\n\n\[system_default_sect\]\nGroups = \$ENV\:\:DEFAULT_GROUPS\n/g" ${OSSLDIR}/ssl/openssl.cnf \
+    && sed -i "s/HOME\t\t\t= ./HOME\t\t= .\nDEFAULT_GROUPS\t= ${DEFAULT_GROUPS}/g" ${OSSLDIR}/ssl/openssl.cnf
+
+# oqs-provider bauen und installieren.
+#
+# OpenSSL 3.5 auf Alpine installiert ossl-modules unter ${OSSLDIR}/lib/ossl-modules,
+# OpenSSL sucht zur Laufzeit aber unter ${OSSLDIR}/lib64/ossl-modules (Alpine
+# multilib-Konvention). Wir muessen daher beide Pfade abdecken.
+#
+# Wir nutzen den expliziten Pfad statt ``find``, weil find bei Symlinks oder
+# Multi-Pfaden Multi-Line-Output produzieren kann was nachfolgende cp-Befehle
+# bricht (genau dieser Bug ist im ersten Build-Versuch aufgetreten).
+#
+# WICHTIG zum Symlink-Setup: weil lib64 vom OpenSSL-make-install bereits als
+# Verzeichnis angelegt sein kann, muessen wir das alte ossl-modules-Subdir
+# explizit entfernen, bevor wir den Symlink anlegen. ``ln -sf TARGET DIR``
+# wuerde sonst den Symlink IN das Verzeichnis legen (falsches Layout, das
+# ist genau der Bug im ersten Sprint-1-Endspurt-Build gewesen).
+WORKDIR /opt/oqs-provider
+RUN ln -s "${INSTALLDIR}/include/oqs" "${OSSLDIR}/include" \
+    && cmake -DCMAKE_BUILD_TYPE=Release \
+             -DOPENSSL_ROOT_DIR="${OSSLDIR}" \
+             -DCMAKE_PREFIX_PATH="${INSTALLDIR}" \
+             -S . -B build \
+    && cmake --build build \
+    && MODULESDIR="${OSSLDIR}/lib/ossl-modules" \
+    && mkdir -p "${MODULESDIR}" \
+    && cp build/lib/oqsprovider.so "${MODULESDIR}/" \
+    && mkdir -p "${OSSLDIR}/lib64" \
+    && rm -rf "${OSSLDIR}/lib64/ossl-modules" \
+    && ln -s "${MODULESDIR}" "${OSSLDIR}/lib64/ossl-modules" \
+    && rm -rf "${INSTALLDIR:?}/lib64"
+
+# Self-signed Test-Cert mit ML-DSA-65 generieren (PQC-25 Algorithmus)
+WORKDIR ${INSTALLDIR}
+ENV PATH="${INSTALLDIR}/sbin:${OSSLDIR}/bin:${PATH}"
+RUN set -ex \
+    && mkdir -p cacert pki \
+    && openssl req -x509 -new -newkey "${SIG_ALG}" -keyout CA.key -out cacert/CA.crt -nodes -subj "/CN=pqc-test CA" -days 365 -config "${OSSLDIR}/ssl/openssl.cnf" \
+    && openssl req -new -newkey "${SIG_ALG}" -keyout pki/server.key -out server.csr -nodes -subj "/CN=pqc-nginx" -config "${OSSLDIR}/ssl/openssl.cnf" \
+    && openssl x509 -req -in server.csr -out pki/server.crt -CA cacert/CA.crt -CAkey CA.key -CAcreateserial -days 365
+
+# ---------------------------------------------------------------------------
+# Stage 2: Runtime - schlankes Image mit nur fertigen Binaries
+# ---------------------------------------------------------------------------
+
+FROM alpine:${ALPINE_VERSION}
+ARG INSTALLDIR
+ARG BASEDIR
+ARG OSSLDIR=${BASEDIR}/openssl/.openssl
+
+# pcre-dev wird zur Laufzeit gebraucht, alles andere bleibt im Build-Image
+RUN apk update && apk --no-cache add pcre-dev
+
+# Binaries und Config aus Stage 1 uebernehmen
+COPY --from=intermediate ${INSTALLDIR} ${INSTALLDIR}
+COPY --from=intermediate ${OSSLDIR} ${OSSLDIR}
+
+# nginx-Config (TLS 1.3 + X25519MLKEM768) wird via Volume gemounted
+# (siehe docker-compose.yml). Default-Config aus Build-Stage bleibt drin.
+
+# nginx-Logs auf stdout/stderr leiten (Docker-Convention)
+RUN ln -sf /dev/stdout "${INSTALLDIR}/logs/access.log" \
+    && ln -sf /dev/stderr "${INSTALLDIR}/logs/error.log"
+
+# Exposed Ports: HTTP fuer dev, HTTPS mit PQC
+EXPOSE 80 443
+
+# PATH und OPENSSL_CONF Env-Vars setzen.
+# Wichtig (siehe oqs-demos): seit nginx 1.25.2 wird die OpenSSL-Config nicht
+# automatisch geladen wenn --with-openssl genutzt wurde, daher explizit setzen.
+ENV PATH="${INSTALLDIR}/sbin:${OSSLDIR}/bin:${PATH}" \
+    OPENSSL_CONF="${OSSLDIR}/ssl/openssl.cnf" \
+    LD_LIBRARY_PATH="${OSSLDIR}/lib:${OSSLDIR}/lib64"
+
+# Healthcheck: nginx prozess + openssl-Provider-Sanity
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+    CMD pgrep nginx >/dev/null \
+        && openssl list -providers 2>/dev/null | grep -q oqsprovider \
+        || exit 1
+
+STOPSIGNAL SIGTERM
+CMD ["nginx", "-g", "daemon off;"]

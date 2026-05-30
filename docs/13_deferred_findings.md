@@ -376,3 +376,23 @@ mit liboqs erwartet 70-75%.
 ### Historie-Update 30.05.2026 (PQC-63)
 
 Pytest-Setup formal abgeschlossen. F-050 als Tier-2-Polish offen.
+
+
+## Findings aus PQC-18 (INF-4) Code-Review am 30.05.2026
+
+Custom Multi-Stage Build von OpenSSL 3.5 + liboqs + oqs-provider + nginx 1.27.
+Alle AC inkl. AC-5 (Live X25519MLKEM768 Handshake) live verifiziert.
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-051 | Self-signed Test-Cert ohne PKI-Setup im pqc-nginx Image. Production muss echtes Cert von einer CA bekommen | Info | vor Production-Deployment | open |
+| F-052 | Build-Args nicht hash-gepinnt (OpenSSL/liboqs/oqs-provider/nginx Git-Tags). Supply-Chain-Reproducibility. Buendeln mit F-018 (liboqs in auth-service-Image) | Info | Sprint 4, vor Bericht-Abgabe | open |
+| F-053 | Image-Tag `rib-pqc-nginx:0.1` ist manuell. Naechste Versions-Bumps brauchen automatisierte Tag-Strategie | Info | Sprint 4 oder bei naechstem Image-Bump | open |
+
+### Historie-Update 30.05.2026 (PQC-18)
+
+INF-4 Sprint-0-Carry-Over abgeschlossen. Damit ist die TLS-Foundation fuer
+Sprint-2 (PQC-43/44/45) gelegt. AC-5 (Mittelweg-Bundle, X25519MLKEM768 + ML-DSA-65
+Cert) ist effektiv halb-PQC-44 mit erledigt.
