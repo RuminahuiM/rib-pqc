@@ -77,7 +77,7 @@ Die detaillierten AC-Checks pro Story liegen in den jeweiligen Jira-Done-Comment
 | PQC-28 AUT-1 SQLAlchemy User-Store plus Argon2id | Done | 5/5 AC, 35 Tests, Live-CRUD 6 Szenarien | `evidence/PQC-28_AUT-1_user_store.md` |
 | PQC-29 AUT-2 Admin-CLI | Done | 5/5 AC, AC-1 Pfad-Update mit Begründung | `evidence/PQC-29_AUT-2_admin_cli.md` |
 | PQC-30 AUT-3 Login-Endpoint | Done | Alle AC, Sprint-Goal-erfüllend | `demos/D-004` (Sprint-Goal-Meilenstein) |
-| PQC-31 AUT-4 User-Enumeration-Schutz | Done | dummy_verify aus PQC-28 vorbereitet | (Evidence beim Implementation-Chat, falls Datei fehlt nachzureichen) |
+| PQC-31 AUT-4 User-Enumeration-Schutz | Done | dummy_verify aus PQC-28 vorbereitet, 4/4 AC inkl. Timing-Diff unter 50 ms | `evidence/PQC-31_AUT-4_user_enumeration_schutz.md` |
 
 **Endurteil:** Auth-Schicht ist End-to-End funktional. OWASP-konform (Argon2id m=64MB/t=3/p=4, kein --password-argv im CLI, dummy_verify gegen Enumeration).
 
@@ -85,10 +85,10 @@ Die detaillierten AC-Checks pro Story liegen in den jeweiligen Jira-Done-Comment
 
 | Story | Status | AC-Bilanz | Demo / Evidence |
 |---|---|---|---|
-| PQC-79 SEC-1 Request-ID Middleware | Done | Alle AC plus Logging-Hardening-Bundle (F-021/F-026/F-031/F-034) | (Implementation-Chat-Evidence) |
-| PQC-80 SEC-2 CORS-Middleware | Done | 5/5 AC inkl. Wildcard-plus-Credentials Validator | (Implementation-Chat-Evidence) |
-| PQC-81 SEC-3 TrustedHostMiddleware | Done | 3/3 AC, evil.com=400 verifiziert | (Implementation-Chat-Evidence) |
-| PQC-82 SEC-4 Security-Headers | Done | OWASP, HSTS conditional non-dev, CSP weggelassen wg Swagger | (Implementation-Chat-Evidence) |
+| PQC-79 SEC-1 Request-ID Middleware | Done | Alle AC plus Logging-Hardening-Bundle (F-021/F-026/F-031/F-034) | `evidence/PQC-79_SEC-1_request_id_middleware.md` |
+| PQC-80 SEC-2 CORS-Middleware | Done | 5/5 AC inkl. Wildcard-plus-Credentials Validator | `evidence/PQC-80_SEC-2_cors_middleware.md` |
+| PQC-81 SEC-3 TrustedHostMiddleware | Done | 3/3 AC, evil.com=400 verifiziert | `evidence/PQC-81_SEC-3_trusted_host_middleware.md` |
+| PQC-82 SEC-4 Security-Headers | Done | OWASP, HSTS conditional non-dev, CSP weggelassen wg Swagger | `evidence/PQC-82_SEC-4_security_headers.md` |
 | PQC-83 SEC-5 Rate-Limiting | Done | slowapi plus Redis, F-005 plus F-048-Audit-Fix resolved | `evidence/PQC-83_SEC-5_rate_limiting.md` |
 
 **Endurteil:** SEC-Schicht produktionsreif. F-048 (Per-IP-vs-Per-Cluster-Bug hinter nginx) durch Phase-1-Audit aufgedeckt und gefixt mit uvicorn proxy_headers plus forwarded_allow_ips.
@@ -236,26 +236,23 @@ Sechs reproduzierbare Demos in `sprint_journal/sprint_1/demos/`:
 | D-005 | PQC-TLS-Handshake X25519MLKEM768 | openssl s_client -groups X25519MLKEM768, ML-DSA-65 Server-Cert |
 | D-006 | Mobile-Login iPhone via Expo Go | Login-Screen, AuthContext, secure-store-Persistenz, Logout |
 
-### 7.2 Feedback-Erwartung an Mentor
+### 7.2 Geplante Themen für den Mentor-Termin
 
-Für den Mentor-Termin 01.06 sind drei Themen geplant: erstens Verifikation dass das Sprint-Goal aus Mentor-Sicht erfüllt ist (Demo D-004 plus D-005), zweitens Diskussion der SEC-Vorzieh-Entscheidung (war das richtig oder hätte es Sprint 2 abwarten sollen), drittens Sprint-2-Empfehlung (TLS-Bundle als nächste Iteration) zur Bestätigung.
+Für den Mentor-Termin am 01.06 sind folgende Themen vorgesehen:
+
+- **Vorgehen mit AI besprechen.** Wie ich die Arbeit zwischen Strategie-Chat (Co-SM-Rolle) und Implementation-Chat (Senior-Engineer-Rolle) aufteile, wie ich Closing-Reviews und Done-Transitions strukturiere, wie ich Findings tracke. Frage an den Mentor ob dieser Workflow aus seiner Sicht okay ist oder ob es Anpassungs-Bedarf gibt.
+- **Demo vom bisherigen Sprint.** Live-Demo der wichtigsten Increment-Outputs: Local-Login-Pipeline (D-004 als Sprint-Goal-Erfüllung) und PQC-TLS-Handshake mit X25519MLKEM768 (D-005). Optional Mobile-Login auf iPhone (D-006).
+- **Architektur kurz besprechen.** Identity-Broker-Pattern (Option 2 plus PQ-Uplift) plus die konkrete Umsetzung mit JWS-Compact und ML-DSA-65 plus Crypto-Agility-Layer.
+- **Ausblick auf nächsten Sprint.** Kurz erklären was als nächstes ansteht (TLS-Bundle, Federation, Mobile-Features).
 
 ---
 
 ## 8. Notizen für die Retrospektive
 
-- **Empirisch-positiver Befund:** Der AI-Multiplier liegt im Code wirklich bei 6x, nicht 1.5x. Sprint-Planning für Sprint 2 plus 3 entsprechend anpassen, aber mit Vorbehalt (Crypto-Interaktion deckelt den Multiplier).
-- **Workflow-Verbesserung etabliert:** HARTE WORKFLOW-REGEL (Done nur nach explizitem User-OK) nach zwei Premature-Done-Fehlern bei PQC-25 plus PQC-22 eingeführt. Hat sich bei PQC-29 und PQC-32 bewährt.
-- **Demo-Konvention etabliert:** D-NNN-Markers mit Trigger (Sprint-Goal, Mentor-Termin, Session-Ende). Sechs Demos im Sprint, alle reproduzierbar.
-- **Evidence-File-Konvention etabliert:** pro Story ein Evidence-Markdown. Funktioniert gut, ist Pflicht-Teil der DoD geworden.
-- **Tooling-Diskrepanz:** PQC-32 Worklog hatte temporär eine Diskrepanz zwischen Daily-Journal und Jira (1h vs 2h). Aufgedeckt beim Jira-Reconnect. Konvention für Coding-plus-Review-Zeit-Erfassung muss in Sprint 2 präzisiert werden.
-- **Setup-Friction als Multiplier-Deckel:** SKL-1 und SKL-2 beide mit 2.0x Multiplier wegen Friction (Node-Version, Expo-SDK-App-Store). Für künftige Setup-Stories grosszügiger schätzen oder Friction-Anteil separat tracken.
-- **Untracked work weiter ein Thema:** Strategie-Chat-Doku-Pflege (4-Achsen-Priorisierung, Evidence-Konvention, Zeit-Tracking-Konvention, Risk-Updates, SEC-Backlog-Pflege, Sprint-Closure) ist nicht in den Stories getrackt. Sollte für Sprint 2 als separate "Process-Story" eingeplant werden, oder explizit als Overhead-Buchung.
+Stichpunkte für die Retro-Diskussion, ausführlicher in `04_retrospective.md`.
 
----
-
-## 9. Versionsverlauf
-
-| Version | Datum | Änderung |
-|---|---|---|
-| 1.0 | 31.05.2026 | Initial-Version. Sprint 1 abgeschlossen mit 20 Stories Done, 47 SP, aggregierter AI-Multiplier 6.4x, Null Carry-Over. Sprint-Goal voll erreicht plus 4 Bonus-Erfüllungen (SEC, Quality, PQC-TLS, Mobile-Login). |
+- **Geschwindigkeit.** Ich hatte 1.5x als konservativen Anker angesetzt, weil ich einen tiefen Wert in der Schätzung haben wollte. Mir war schon klar dass es schneller geht, ich wollte aber austesten wie viel schneller. Mein Plan war alle Must-Stories abzuschliessen. Nicht erwartet hatte ich dass zusätzlich alle drei Sprint-Stretch-Stories durchgehen plus 10 SP SEC aus Sprint 2 vorgezogen werden. Für Sprint 2 plane ich auf Basis dieser Erkenntnis, aber mit Vorbehalt: bei echter Crypto-Interaktion (KEM, TLS, Federation) erwarte ich tiefere Multiplier.
+- **Demos.** Ich habe die D-NNN-Konvention bewusst etabliert um möglichst viele reproduzierbare Demos zu sammeln und damit Fortschritt sichtbar zu dokumentieren. Sechs Demos in Sprint 1 sind ein guter Bestand für den Mentor-Termin und den Schlussbericht. Will ich in Sprint 2 weitermachen.
+- **Evidence-Files.** Pro Story ein Markdown mit AC-Bilanz und Verifikations-Output war Pflicht-Teil der DoD. Hat sich gelohnt: beim Review konnte ich pro Story sofort sehen was erfüllt wurde, statt alles im Done-Comment zu suchen. Behalte ich.
+- **Setup-Arbeit.** Bei Tooling-Sachen (Node-Versionen, Expo-SDK-App-Store-Kompatibilität, Docker-Desktop-Start) komme ich langsamer voran als bei reiner Code-Arbeit. AI hilft mir bei Crypto-Logik mehr als bei Environment-Problemen die spezifisch zu meiner Maschine oder zum App-Store sind. Für Sprint 2 mit OAuth-App-Setup (Google, Microsoft) muss ich in der Planung damit rechnen.
+- **Workload.** Sprint 1 hat sich realistisch angefühlt, nicht überlastet. Trotz 41 SP Must plus 5 SP Stretch plus 10 SP SEC vorgezogen war es mit AI-Unterstützung machbar. Die Pfingstmontag-Ausnahme und die Donnerstag-Sondersession haben geholfen, aber auch ohne hätte ich das Wichtige geschafft. Sprint 2 plane ich auf 5 reguläre Arbeitstage (zwei Wochenenden plus ein Mittwoch).
