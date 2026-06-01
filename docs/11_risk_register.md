@@ -71,6 +71,7 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 | R-E02 | liboqs / oqs-provider Breaking Changes | Extern | Niedrig | Mittel | 2 | Monitor |
 | R-P03 | Krankheit oder unerwartete Ausfälle | Persönlich | Niedrig | Hoch | 3 | Monitor |
 | R-E01 | NIST-Standard-Updates während Projekt | Extern | Sehr niedrig | Niedrig | 1 | Accepted |
+| R-N01 | Expo SDK Version nicht in App Store Expo-Go-App verfügbar | Node/JS-Ökosystem | Hoch | Niedrig | 3 | Mitigated (30.05) |
 
 ---
 
@@ -339,6 +340,25 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 - Lock-Files (uv.lock oder pip-tools) committen.
 
 **Contingency:** Bei Inkompatibilität: alte Image-Version weiternutzen, im Bericht erwähnen.
+
+---
+
+### R-N01: Expo SDK Version nicht in App Store Expo-Go-App verfügbar
+
+**Beschreibung:** Die iPhone-Demo des Mobile-Clients erfolgt via Expo Go aus dem App Store, nicht via lokalem Custom-Build. Die App-Store-Version der Expo-Go-App unterstützt nur SDK-Versionen die Apple zugelassen hat. Beim Projekt-Setup im SKL-2 hat sich gezeigt: Expo SDK 56 (latest beim Setup-Zeitpunkt 30.05.2026) ist noch nicht in der App-Store-Expo-Go-App verfügbar, nur SDK 54. Downgrade auf SDK 54 nötig.
+
+**Probability:** Hoch (Apple-Review-Verzug ist Pattern, nicht Ausnahme) | **Impact:** Niedrig (Downgrade unter 5 Min, alle nötigen Features in SDK 54 verfügbar) | **Score:** 3
+
+**Konsequenz bei Eintritt:** Mobile-Demo nicht auf iPhone möglich, alternativ Custom-Build via EAS (Apple Developer Account nötig) oder Android-Demo.
+
+**Mitigation:**
+- Sprint 1 hat SDK 54 als FINAL für gesamten Projekt-Lebenszyklus festgelegt (Memory `project_pqc_expo_sdk.md`).
+- Kein Upgrade auf SDK 55 oder 56 vor 04.07.2026, ausser App Store zieht nach.
+- Im Dockerfile und Setup-Doku ist SDK 54 explizit gepinnt mit Begründung.
+
+**Contingency:** Sollte Apple SDK 54 abkündigen vor Projekt-Abgabe (unwahrscheinlich, SDK-Versionen werden lange supported): Android-Demo via Expo-Go-Android (gleiche App, andere Plattform, mehr SDK-Toleranz).
+
+**Status-Update 30.05.2026:** Mitigated. Downgrade in PQC-20 (SKL-2) erfolgt, iPhone-Demo funktioniert mit SDK 54, drei Stack-Screens via Expo Go live verifiziert.
 
 ---
 

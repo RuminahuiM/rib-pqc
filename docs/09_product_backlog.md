@@ -146,8 +146,8 @@ Die Story-Points und T-Shirt-Sizes in diesem Backlog sind als **klassische Solo-
 | Sprint | Zeitraum | Epic-Schwerpunkt | Stories (gekürzt) |
 |---|---|---|---|
 | Sprint 0 | 06.05 bis 24.05 | INF (Setup, Recherche, Dokumente) | INF-1, INF-2, INF-3, INF-4 |
-| Sprint 1 | 25.05 bis 31.05 | SKL + CRY (Foundation) + AUT + TOK | SKL-1, SKL-2, CRY-1, CRY-2 (partial), CRY-5, AUT-1, AUT-2, AUT-3, AUT-4, TOK-1, TOK-2, APP-1, APP-4, APP-9, QUA-1, QUA-2, QUA-3 |
-| Sprint 2 | 01.06 bis 14.06 | BRK + TLS + Federation-Integration + SEC | BRK-1, BRK-2, BRK-3, BRK-4, BRK-5, BRK-6, BRK-7, TLS-1, TLS-2, TLS-3, APP-7, APP-8, SEC-1, SEC-2, SEC-3, SEC-4, SEC-5 |
+| Sprint 1 | 24.05 bis 31.05 | SKL + CRY + AUT + TOK + INF-Carry-Over + SEC-vorgezogen + QUA | SKL-1, SKL-2, CRY-1, CRY-2, CRY-5, AUT-1, AUT-2, AUT-3, AUT-4, TOK-1, TOK-2, QUA-1, QUA-2, QUA-3, INF-4 (Carry-Over), SEC-1, SEC-2, SEC-3, SEC-4, SEC-5 |
+| Sprint 2 | 01.06 bis 14.06 | BRK + TLS + Federation-Integration | BRK-1, BRK-2, BRK-3, BRK-4, BRK-5, BRK-6, BRK-7, TLS-1, TLS-2, TLS-3, APP-7, APP-8 |
 | Sprint 3 | 15.06 bis 28.06 | SES + DCH + Client-Crypto + Algorithmus-Demo | CRY-3, CRY-4, CRY-6, CRY-7, SES-1, SES-2, SES-3, SES-4, DCH-1, DCH-2, DCH-3, DCH-4, APP-2, APP-3, APP-5, APP-6, QUA-4, QUA-5 |
 | Sprint 4 | 29.06 bis 05.07 | DOC + Benchmarks + Polish | TOK-3, TOK-4, DOC-1, DOC-2, DOC-3, DOC-4, QUA-6, QUA-7, QUA-8 |
 | Stretch | nach Slack | STR | STR-1, STR-2, STR-3 |
@@ -1365,8 +1365,8 @@ Diese fünf Stories sind aus dem Senior-Closing-Review von PQC-19 (SKL-1) am 25.
 | Sprint | Must-Stories (SP) | Should/Could-Stories (SP) | Total SP geplant | Realistische Kapazität (SP) |
 |---|---|---|---|---|
 | Sprint 0 | INF-1 bis INF-4 = 14 | --- | 14 | 14 (rückblickend, Sprint läuft aus) |
-| Sprint 1 | SKL+CRY+AUT+TOK Must Cluster = ca. 41 | 0 | 41 | ca. 20 bis 25 |
-| Sprint 2 | BRK + TLS + APP Federation = ca. 47, plus SEC = 10 | 0 | 57 | ca. 25 bis 30 |
+| Sprint 1 | initial 41, faktisch 42 done | 0 | 42 done (inkl. 10 SP SEC vorgezogen) | ca. 13.5h tatsächlich, Multiplier 6.3x |
+| Sprint 2 | BRK + TLS + APP Federation = ca. 47 (SEC bereits in Sprint 1 done) | 0 | 47 | ca. 25 bis 30 |
 | Sprint 3 | SES + DCH + APP Rest + CRY-3/4/6/7 = ca. 60 | SES-4 (3) | 63 | ca. 25 bis 30 |
 | Sprint 4 | DOC-1, DOC-2, DOC-3, QUA-6/7/8 = ca. 29 | TOK-3, TOK-4, DOC-4 (10) | 39 | ca. 12 bis 15 |
 | Stretch | --- | STR-1, STR-2, STR-3 = 18 | --- | --- |
@@ -1398,3 +1398,5 @@ Die hohe Must-Quote spiegelt die enge Verzahnung der Architektur-Komponenten wid
 |---|---|---|
 | 1.0 | 17.05.2026 | Initial-Version. 13 Epics mit 63 Stories. Volle Akzeptanzkriterien für Sprint-0- bis Sprint-2-Stories, Summary-AC für Sprint-3- und Sprint-4-Stories. MoSCoW-Priorisierung. Sprint-Allokation mit SM-Warnung zur Kapazitäts-Über-Allokation. |
 | 1.1 | 27.05.2026 | Priorisierungs-Konvention erweitert (4-Achsen-Modell mit Built-in-Priority-Field, Sektion 1.3). Epic SEC nachträglich angelegt (PQC-78) mit 5 Stories SEC-1 bis SEC-5 (PQC-79 bis PQC-83), aus PQC-19 Senior-Closing-Review als Tier-1-Findings. Total jetzt 14 Epics mit 68 Stories. Sprint 2 SP-Last von 47 auf 57 erhöht. |
+| 1.2 | 31.05.2026 | Sprint-1-Closure: SEC-Bundle (PQC-79 bis PQC-83, 10 SP) wurde im Sprint 1 vorgezogen statt erst in Sprint 2 gemacht, weil SEC-Middlewares Voraussetzung für AUT-3 (Login-Endpoint) waren. INF-4 als Sprint-0-Carry-Over auch in Sprint 1 erledigt. Sprint 1 schliesst mit 17 Stories Done, 42 SP, aggregierter AI-Multiplier 6.3x. Sprint 2 entsprechend entlastet (47 SP statt 57 SP). |
+| 1.3 | 31.05.2026 abend | App-Bundle-Stretch in Sprint 1 erreicht: PQC-54 (APP-1 Login-Screen), PQC-57 (APP-4 AuthContext), PQC-62 (APP-9 Token-Persistenz). Sprint 1 ist damit 100% komplett (alle 41 SP Must plus 5 SP Stretch plus 10 SP SEC vorgezogen, total 47 SP Done in 20 Stories). Aggregierter AI-Multiplier final 6.4x. Carry-Over nach Sprint 2 = Null. |

@@ -396,3 +396,68 @@ Alle AC inkl. AC-5 (Live X25519MLKEM768 Handshake) live verifiziert.
 INF-4 Sprint-0-Carry-Over abgeschlossen. Damit ist die TLS-Foundation fuer
 Sprint-2 (PQC-43/44/45) gelegt. AC-5 (Mittelweg-Bundle, X25519MLKEM768 + ML-DSA-65
 Cert) ist effektiv halb-PQC-44 mit erledigt.
+
+
+## Findings aus PQC-20 (SKL-2) Code-Review am 30.05.2026
+
+PQC-20 Expo-Skeleton angelegt mit create-expo-app. Default-Template lieferte
+**SDK 56** (released 21.05.2026). Beim ersten AC-4-Live-Test im Expo Go
+wurde festgestellt, dass Expo Go im App Store **noch nicht SDK 56
+supportet**: aktuell ist nur SDK 54 in App Store + Play Store, SDK 55 wartet
+seit ~Mai 2026 auf Apple-Approval. SDK 56 ist nur via TestFlight External
+Beta oder `eas go` Custom-Build verfuegbar.
+
+Senior-Decision (Sprint-1 Endspurt-Pragmatik): Downgrade auf SDK 54 fuer
+App-Store-Kompatibilitaet ohne TestFlight-Beta-Setup. Sprint-2/3 koennen
+upgraden wenn SDK 55/56 in den App Stores verfuegbar sind.
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-054 | Expo SDK 54 statt 56 (App-Store-Expo-Go-Kompatibilitaet). Upgrade-Path in Sprint 2/3 wenn SDK 55/56 in App Store verfuegbar. Aufwand: `npx expo install --check` plus eventuell paar API-Anpassungen | Info | Sprint 2/3 oder bei SDK-55/56-App-Store-Release | open |
+
+### Risk-Register-Hand-Off (Co-SM-Chat)
+
+Fuer das Risk Register (docs/11_risk_register.md) als neuer Eintrag empfohlen:
+
+- **ID:** R-N01 (neue Kategorie: Node/JS-Oekosystem)
+- **Titel:** Expo SDK Version nicht in App Store verfuegbar
+- **Beschreibung:** Expo Go App-Store-Version hinkt aktuell 1-2 SDK-Versionen
+  hinterher. Bei Projekt-Init kann der Default neuer sein als die supportete
+  SDK im App Store. Devices ohne TestFlight-Beta-Access bekommen
+  Incompatibility-Error.
+- **Wahrscheinlichkeit:** HOCH (bereits eingetreten in PQC-20)
+- **Impact:** NIEDRIG (Downgrade dauert <5min, alle benoetigten Features in
+  aelteren SDKs verfuegbar)
+- **Mitigation:** Bei `create-expo-app` immer pruefen welche SDK-Version
+  Expo Go aktuell supportet, ggf. mit `--sdk-version` Flag pinnen
+- **Status:** Mitigated in PQC-20 (Downgrade auf SDK 54)
+
+### Historie-Update 30.05.2026 (PQC-20)
+
+SDK-56-Inkompatibilitaet entdeckt + auf SDK 54 downgraded. F-054 als
+Tier-2-Polish offen (Upgrade-Path), R-N01 als Risk-Register-Empfehlung an
+Co-SM-Chat.
+
+
+## Findings aus PQC-57/62/54 (APP-4 + APP-9 + APP-1) Bundle-Review am 30-31.05.2026
+
+App-Bundle (AuthContext + Token-Persistenz + Login-Form). Bundle weil
+PQC-57 AC-3 (Token in secure-store persistieren) und PQC-62 AC-1 (setItemAsync
+speichert Token) effektiv die gleiche Code-Linie sind, plus PQC-54
+Submit-Action ruft die login-Methode aus PQC-57 auf.
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-055 | Auto-Login nach Force-Close von Expo Go funktioniert nicht zuverlaessig im Dev-Mode (Token kommt nicht aus secure-store zurueck). Im Dev-Mode laedt Expo Go den JS-Bundle aus Metro neu, was die Keychain-Persistenz ueberlebt aber moeglicherweise andere Service-Scopes nutzt. Echter Test ist nur mit standalone .ipa-Build moeglich. | Info | bei standalone-Build-Story oder bei TestFlight-Deploy-Vorbereitung (Sprint 4 falls anvisiert) | open |
+
+### Historie-Update 31.05.2026 (App-Bundle)
+
+PQC-57 + PQC-62 + PQC-54 als sequentielle Bundle abgeschlossen. F-055 als
+Expo-Go-Dev-Mode-Limitation dokumentiert (nicht App-Code-Bug). AC-4 von
+PQC-62 (Real-Phone Auto-Login nach App-Neustart) ist im Dev-Mode nicht
+voll verifizierbar; die secure-store-Mechanik (saveToken/loadToken/deleteToken)
+funktioniert aber im Live-Test bei Hot-Reload (in-process-Reload).
