@@ -117,7 +117,7 @@ verify (tampered): False  # erwartet False
 | **Round-Trip Erfolg** | Beide Tokens (local plus federated) werden vom selben Service erfolgreich verifiziert. ML-DSA-65-Public-Key-Lookup ueber `kid: "auth-signing-key-v1"` funktioniert. |
 | **Tamper-Detection** | Wenn die signing-input-bytes nach dem sign-Schritt veraendert werden, schlaegt verify mit `result: false` fehl. ML-DSA-65 Signature bindet kryptographisch an den exakten Header+Payload-Bytestring. |
 
-## Mentor-Hinweis fuer 08.06.2026
+## Mentor-Hinweis fuer 01.06.2026
 
 Diese Demo zeigt den Schritt von "Crypto-Foundation existiert" (D-001) zu
 "Crypto-Foundation wird vom Application-Layer verwendet" (D-002). Der

@@ -76,7 +76,7 @@ liboqs-python faulthandler is disabled
 - Das Demo-Script umgeht den HTTP-Layer und nutzt die Module direkt im Container. Ein HTTP-basierter Demo-Endpoint kommt nicht in dieser Story sondern in der Token-Story-Reihe (PQC-32/33).
 - Per F-014 lebt der Secret Key als Python-`bytes`-Objekt im Memory. Keine HSM-Integration, sondern File-basierte Persistenz. Bericht-Limitation.
 
-## Mentor-Hinweis fuer 08.06.2026 Termin
+## Mentor-Hinweis fuer 01.06.2026 Termin
 
 Diese Demo kann als kurzer Live-Beweis verwendet werden: Container starten, Demo-Script
 ausfuehren, 11 gruene Steps zeigen. Bringt PQC-Substanz auf den Tisch ohne sich in

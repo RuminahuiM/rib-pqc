@@ -118,7 +118,7 @@ Bewiesen sind:
 - **Kein TLS in Dev-Setup.** HSTS deshalb nur in non-dev aktiviert. Production-Deployment braucht TLS (PQC-18 INF-4 hybrid-TLS via oqs-provider waere optional Sprint-2+).
 - **CSP nicht gesetzt** (Swagger-UI braucht relaxed CSP). Sprint-3 Polish.
 
-## Mentor-Hinweis fuer 08.06.2026
+## Mentor-Hinweis fuer 01.06.2026
 
 Diese Demo zeigt das **Sprint-1-Sprint-Goal komplett**. End-to-End Login mit ML-DSA-65 funktioniert live im Container. Bewertungs-relevant:
 

@@ -116,7 +116,7 @@ fuer authentifizierte Tokens" erreicht. Naechste Stories (PQC-30 AUT-3
 Login, Sprint 2 Broker-Stories) koennen direkt auf
 `app.state.token_service.issue/verify` aufbauen.
 
-## Mentor-Hinweis fuer 08.06.2026
+## Mentor-Hinweis fuer 01.06.2026
 
 Diese Demo ist Bewertungs-relevant: sie zeigt nicht nur die positive
 Funktionalitaet (Issue+Verify), sondern explizit die Schutz-Schichten
