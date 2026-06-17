@@ -506,3 +506,54 @@ fuer alle nachfolgenden BRK-Stories etabliert. PQC-39 BRK-4 (claim_mapper-
 Voll) und PQC-38 BRK-3 (verify_id_token-Voll) werden die Plugin-Stub-Bodies
 ersetzen, ohne die Registry-API zu beruehren. F-057 wurde durch diese Story
 resolved.
+
+
+## Findings aus PQC-37 (BRK-2) Code-Review am 17.06.2026
+
+OIDC Authorization Code Flow + PKCE inkl. State-Service implementiert. 47 neue
+Tests gruen, volle Suite 172 passed. F-058 in dieser Story resolved.
+
+### Tier-2 (Polish und Defense-in-Depth)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-058 | init_idp_registry Misconfig-Validation | Should | vor PQC-37 | resolved (PQC-37: IdpConfigError + _check_provider_credentials in idp/registry_init.py) |
+| F-062 | discovery_cache ist In-Memory pro Service-Instanz, bei Scale-Out wuerde jede Replica separat cachen. Production: shared Redis-Cache fuer Discovery-Docs. | Info | Sprint 4 oder Scale-Out-Story | open |
+| F-063 | PKCE-Verifier wird vom Server NICHT gegen ein gespeichertes code_challenge gepruft (Vertrauen auf IdP-Validation gemaess RFC 7636). Defense-in-Depth: State-Eintrag koennte code_challenge auch speichern und Server prueft SHA256(verifier)==challenge. | Should | vor PQC-42 BRK-7 wenn State-Service erweitert wird | open |
+| F-064 | Spaces in scope-Query werden als `+` URL-encoded statt `%20`. Beide RFC 3986-konform, aber `%20` universal-kompatibler. | May | Sprint 4 wenn echte IdP-Tests evtl. Probleme zeigen | open |
+| F-065 | id_token wird roh an die App returned ohne Server-side Signature-Verifikation. BRK-3 PQC-38 wird das aufgreifen, AC-5 spec'ed es so. | Info | resolved durch PQC-38 BRK-3 | tracked-in-jira (PQC-38) |
+| F-066 | Router validiert code_verifier nur per Laenge (43-128), nicht per Character-Class (RFC 7636: A-Z a-z 0-9 - . _ ~). App muss korrekte Generierung sicherstellen. | Info | Sprint 4 oder bei PQC-60 APP-7 | open |
+| F-067 | High-Fidelity-Test mit echtem Redis-Container (statt fakeredis) fuer TTL-Expiry-Test sinnvoll, aber langsam. | Info | Sprint 4 Polish, optional | open |
+
+### Historie-Update 17.06.2026 (PQC-37)
+
+OIDC-Code-Flow-Foundation komplett: Server kann State generieren, App-PKCE-
+Flow durchfuehren, Code+Verifier gegen Google/Microsoft-/token-Endpoint
+tauschen. id_token kommt roh durch (Server-side Validation in BRK-3).
+PQC-42 BRK-7 wird darauf aufbauen mit Defense-in-Depth (F-063). PQC-38
+BRK-3 ersetzt die NotImplementedError-Stubs in den Plugins (F-065).
+
+
+## Findings aus PQC-38 (BRK-3) Code-Review am 17.06.2026
+
+ID-Token-Verifikation gegen JWKS implementiert. id_token ist ab BRK-3
+trusted (Sig + iss + aud + exp gepruefr). F-065 resolved. 20 neue Tests,
+volle Suite 190 passed.
+
+### Tier-2 (Polish und Informational)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-065 | id_token wurde in BRK-2 roh weitergereicht ohne Server-side Signature-Verifikation. | Info | resolved durch PQC-38 BRK-3 | resolved (PQC-38: IdTokenVerifier + plugin.verify_id_token mit RS256+iss+aud+exp) |
+| F-068 | JWKS-Cache ist In-Memory pro Service-Instanz. Bei Scale-Out wuerde jede Replica separat cachen. Analog F-062 fuer Discovery-Cache. | Info | Sprint 4 oder Scale-Out-Story | open |
+| F-069 | Verifier loggt `sub` bei Erfolg. Mit `oid` (MS) waere tenant-stable. Aktuell `sub` ist opaque, kein Privacy-Issue. | May | Sprint 4 Logging-Polish | open |
+| F-070 | `nbf`-Claim wird nicht im require-Set verlangt. Wenn Provider nbf liefert, wird er aber per pyjwt-default geprueft. | Info | informational | open |
+| F-071 | Force-Refresh-Loop ist auf 1 Retry begrenzt. Bei provider-side rapid-Rotation (Sekunden) koennte das knapp sein. Provider tut das aber nicht. | Info | informational | open |
+| F-072 | Microsoft-Plugin tid-Check kommt NACH Sig-Verify. RFC 9700 sagt Sig-Verify zuerst (was wir machen), tid-Check ist Defense-in-Depth. | Info | informational | open |
+
+### Historie-Update 17.06.2026 (PQC-38)
+
+ID-Token-Verify-Foundation komplett: Server validiert JWS-Signature gegen
+Provider-JWKS (cached 1h), iss/aud/exp gepruefr, Algorithm-Pinning RS256-only,
+Microsoft tid-Defense-in-Depth. id_token ist ab jetzt trusted. PQC-39 BRK-4
+wird darauf claim_mapper bauen (normalisierte User-Identity).
