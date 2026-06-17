@@ -666,4 +666,19 @@ PQ-TLS-Handshake-Verifikations-Skript erstellt. Live-Demo deferred zu User-Actio
 
 ### Historie-Update 17.06.2026 (PQC-44)
 
-Sprint-2 Done-SP: 45. T
+Sprint-2 Done-SP: 45. TLS-Pfad endet mit PQC-45 (E2E-Routing zu auth-service via 443).
+
+
+## Findings aus PQC-45 (TLS-3) Code-Review am 17.06.2026
+
+nginx-443 Reverse-Proxy zu auth-service implementiert. X-Forwarded-Header durchgaengig fuer Rate-Limit-Konsistenz (PQC-83 F-048).
+
+### Tier-2 (User-Action)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-085 | AC-2 Live-Demo (curl gegen https://localhost/health im laufenden Container) = User-Aktion analog F-084. | May | vor Bericht-Abgabe | open (User-Action) |
+
+### Historie-Update 17.06.2026 (PQC-45)
+
+End-to-End-Server-Pfad Sprint-2 nach PQC-45 vollstaendig: Federation BRK-1..BRK-7 + TLS-1..TLS-3 + Foundation PQC-84. Sprint-2 Don
