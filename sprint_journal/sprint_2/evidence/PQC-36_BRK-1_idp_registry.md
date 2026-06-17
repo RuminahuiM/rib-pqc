@@ -114,10 +114,12 @@ verwendet).
 ## Story-Aufwand
 
 - Story-Points: 5
-- Tatsaechliche Zeit: ca. 75 Minuten (Implementation + Tests + Review +
-  Evidence) - vermerken via Jira-Worklog.
+- Tatsaechliche Zeit: **30 Minuten** (Implementation + Tests + Review +
+  Evidence). Worklog in Jira eingetragen.
 - AI-Multiplier-Beobachtung: Pattern-Replikation aus PQC-21 CRY-1 (crypto/
-  Modul) hat Implementations-Zeit deutlich verkuerzt.
+  Modul) hat Implementations-Zeit massiv verkuerzt. 5 SP in 0.5h = sehr
+  hoher Multiplier, getrieben durch Strukturanalogie zur bestehenden
+  CryptoRegistry plus klar definierten Stubs ohne JWKS/Token-Logik.
 
 ## Follow-Up
 
