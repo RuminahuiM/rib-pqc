@@ -602,4 +602,20 @@ Google IdP-Plugin Voll-Demo: Broker-Token-Ausgabe im federated-Callback ergaenzt
 PQC-40 BRK-5 bestaetigt die Plugin-Architektur: BRK-1..BRK-4 hat 95% der
 Logik geliefert, BRK-5 fuegte nur die Broker-Token-Ausgabe + Demo-Doku
 hinzu. Neue Provider (Apple in STR-2 PQC-76) folgen demselben Muster:
-nur ihre Plug
+nur ihre Plugin-Implementierung + AC-Check + Demo, kein Infrastructure-Code.
+
+
+## Findings aus PQC-41 (BRK-6) Code-Review am 17.06.2026
+
+Microsoft IdP-Plugin Voll-Demo: AC-Cross-Reference auf BRK-1..BRK-5. Keine Code-Aenderung notwendig (Plugin-Architektur deckt alles ab). Bestaetigt das Architektur-Design: neue Provider haben Grenzkosten ~null.
+
+### Tier-2 (Doku-Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-080 | AC-2 Spec sagt Multi-Tenant `common`, wir nutzen Single-Tenant `<tenant>` (Senior-Decision aus PQC-84). Bericht muss diese Abweichung mit Begruendung (UC-3 Mitarbeiter-Login + tid-Defense-in-Depth) explizit dokumentieren. | May | vor Bericht-Abgabe | open |
+
+### Historie-Update 17.06.2026 (PQC-41)
+
+End-to-End-Server-Pfad funktional komplett (BRK-0..BRK-6). Sprint-2 Done-SP:
+PQC-84 + PQC-36 + PQC-37 + PQC-38 + PQC-39 + PQC-40 + PQC
