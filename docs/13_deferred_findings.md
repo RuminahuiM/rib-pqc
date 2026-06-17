@@ -636,4 +636,19 @@ CSRF/State+PKCE-Refactor zu Server-managed BFF-Pattern. AC-5 zu 100% erfuellt (c
 ### Historie-Update 17.06.2026 (PQC-42)
 
 End-to-End-OIDC-Server-Pfad nach PQC-42 vollstaendig: BRK-1..BRK-7 done.
-Sprint-2 Do
+Sprint-2 Done-SP = 38 (von 62 geplant). Restscope: TLS-Pfad + App-Stories.
+
+
+## Findings aus PQC-43 (TLS-1) Code-Review am 17.06.2026
+
+nginx X25519MLKEM768-Konfiguration: AC-Cross-Reference auf PQC-18 INF-4 (Foundation). Keine Code-Aenderung. Bonus-Abweichung: Self-signed Cert nutzt ML-DSA-65 statt klassisches ECDSA (durchgaengig PQC).
+
+### Tier-2 (Doku-Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-083 | AC-2 spec sagt ECDSA, wir nutzen ML-DSA-65 (bewusste Erweiterung in PQC-Richtung). Bericht muss als Story-Highlight prominent erwaehnen. | May | vor Bericht-Abgabe | open |
+
+### Historie-Update 17.06.2026 (PQC-43)
+
+TLS-Foundation aus P
