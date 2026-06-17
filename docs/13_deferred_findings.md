@@ -696,4 +696,15 @@ App-Side Google-Login implementiert: oauthClient.ts mit PKCE + Authorize/Callbac
 
 ### Historie-Update 17.06.2026 (PQC-60)
 
-App-Login-Code komplett. 
+App-Login-Code komplett. Sprint-2 Done-SP: 52. Restscope: PQC-61 APP-8 Microsoft (5 SP).
+
+
+## Findings aus PQC-61 (APP-8) Code-Review am 17.06.2026
+
+Microsoft-Login App-Seite implementiert. Refactor zu generischem handleOAuthLogin-Helper. Dank generischem oauthClient kein neuer Code in der Lib. Keine neuen Findings - F-086 (OAuth-App-Type-Switch) gilt auch fuer Microsoft.
+
+### Historie-Update 17.06.2026 (PQC-61 + Sprint-2 abgeschlossen)
+
+**Sprint-2 funktional komplett:** PQC-84 + PQC-36 + PQC-37 + PQC-38 + PQC-39 + PQC-40 + PQC-41 + PQC-42 + PQC-43 + PQC-44 + PQC-45 + PQC-60 + PQC-61 = **57 SP** Done (92% von 62 SP geplant).
+
+Restscope: keine Must-Stories. Dem

@@ -5,12 +5,16 @@
  * AuthContext.login() mit Dummy-Token auf (Sprint-1 Fake-Login, echter
  * Server-Call kommt in PQC-59 APP-6 secureClient).
  *
- * Google-Button (PQC-60 APP-7) ruft `loginWithProvider("google")` und
- * persistiert den Broker-Token im AuthContext. Live-Demo-Limitation siehe
- * F-086 (redirect_uri Server-Side, App-Side-Return blocked bis OAuth-App-
- * Type-Switch zu iOS/Custom-Scheme in Sprint-3).
+ * Google-Button (PQC-60 APP-7) und Microsoft-Button (PQC-61 APP-8) rufen
+ * `loginWithProvider(provider)` und persistieren den Broker-Token im
+ * AuthContext. Live-Demo-Limitation siehe F-086 (redirect_uri Server-Side,
+ * App-Side-Return blocked bis OAuth-App-Type-Switch zu iOS/Custom-Scheme
+ * in Sprint 3, gilt fuer beide Provider).
  *
- * Microsoft-Button bleibt Placeholder bis PQC-61 APP-8.
+ * Microsoft-Tenant-Konfiguration (PQC-61 AC-2): Single-Tenant via
+ * RIB_IDP_PROVIDERS__MICROSOFT__TENANT_ID auf der Server-Seite (siehe
+ * PQC-84 Evidence). App-Code ist tenant-agnostic - die Tenant-ID wird
+ * vom Server in die Authorize-URL eingebaut.
  */
 
 import { router } from "expo-router";
@@ -93,10 +97,13 @@ export default function LoginScreen() {
     }
   }
 
-  async function handleGoogleLogin() {
+  async function handleOAuthLogin(
+    provider: "google" | "microsoft",
+    label: string,
+  ) {
     setIsSubmitting(true);
     try {
-      const result = await loginWithProvider("google");
+      const result = await loginWithProvider(provider);
       // AC-5: Broker-Token in AuthContext, Navigation zu /home.
       await login(result.broker_token);
       router.replace("/home");
@@ -105,18 +112,14 @@ export default function LoginScreen() {
         err instanceof OAuthError
           ? `${err.message}${err.reason ? ` (${err.reason})` : ""}`
           : String(err);
-      Alert.alert("Google Login fehlgeschlagen", message);
+      Alert.alert(`${label} Login fehlgeschlagen`, message);
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  function handleOAuthPlaceholder(provider: "Microsoft") {
-    Alert.alert(
-      `${provider} Login`,
-      `OAuth-Flow kommt in PQC-61 (APP-8).`,
-    );
-  }
+  const handleGoogleLogin = () => handleOAuthLogin("google", "Google");
+  const handleMicrosoftLogin = () => handleOAuthLogin("microsoft", "Microsoft");
 
   return (
     <SafeAreaView style={styles.container}>
@@ -191,7 +194,7 @@ export default function LoginScreen() {
 
         <Pressable
           style={styles.button}
-          onPress={() => handleOAuthPlaceholder("Microsoft")}
+          onPress={handleMicrosoftLogin}
           disabled={isSubmitting}
         >
           <Text style={styles.buttonText}>Continue with Microsoft</Text>
@@ -199,8 +202,10 @@ export default function LoginScreen() {
       </View>
 
       <Text style={styles.note}>
-        Sprint-1 Fake-Login mit Dummy-Token. Echter Server-Call kommt in
-        PQC-59 (APP-6 secureClient). Google/Microsoft folgen in PQC-60/61.
+        Sprint-1 Fake-Login mit Dummy-Token. Echter lokaler Server-Call
+        kommt in PQC-59 (APP-6 secureClient). Google/Microsoft via OIDC
+        bereits durch PQC-60/61 implementiert; Live-Browser-Demo wartet
+        auf OAuth-App-Type-Switch (siehe F-086).
       </Text>
     </SafeAreaView>
   );
