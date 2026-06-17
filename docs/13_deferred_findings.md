@@ -681,4 +681,19 @@ nginx-443 Reverse-Proxy zu auth-service implementiert. X-Forwarded-Header durchg
 
 ### Historie-Update 17.06.2026 (PQC-45)
 
-End-to-End-Server-Pfad Sprint-2 nach PQC-45 vollstaendig: Federation BRK-1..BRK-7 + TLS-1..TLS-3 + Foundation PQC-84. Sprint-2 Don
+End-to-End-Server-Pfad Sprint-2 nach PQC-45 vollstaendig: Federation BRK-1..BRK-7 + TLS-1..TLS-3 + Foundation PQC-84. Sprint-2 Done-SP: 47. Restscope: PQC-60 APP-7 + PQC-61 APP-8 (App-Stories).
+
+
+## Findings aus PQC-60 (APP-7) Code-Review am 17.06.2026
+
+App-Side Google-Login implementiert: oauthClient.ts mit PKCE + Authorize/Callback-Roundtrip + AuthContext-Integration. Code-Teil komplett, Live-Demo blocked durch OAuth-App-Type (Web statt iOS).
+
+### Tier-2 (Live-Demo Blocker)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-086 | Live-Browser-Demo blocked weil Google-OAuth-App (PQC-84) als Web-Application registriert ist mit Server-Side redirect_uri. Mobile-App-Flow braucht iOS-App-Type + Custom-Scheme-redirect_uri (z.B. app://oauth/google/callback). Sprint-3-Action: neue OAuth-App-Registrierung + Server-Config-Update. App-Code ist funktional, kein Code-Fix noetig. | Should | Sprint 3 (vor Bericht-Demo) | open (User-Action) |
+
+### Historie-Update 17.06.2026 (PQC-60)
+
+App-Login-Code komplett. 

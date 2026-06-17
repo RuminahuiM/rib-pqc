@@ -1,11 +1,16 @@
 /**
- * Login-Screen (PQC-20 SKL-2 Skeleton + PQC-54 APP-1 Form-Verbesserung).
+ * Login-Screen (PQC-20 SKL-2 + PQC-54 APP-1 Form, PQC-60 APP-7 Google-Login).
  *
- * Form mit Email/Passwort-Inputs + Validation (Email-Regex + min 8 Zeichen
- * PW). Submit ruft AuthContext.login() mit Dummy-Token auf (Sprint-1
- * Fake-Login, echter Server-Call kommt in PQC-59 APP-6 secureClient).
+ * Form mit Email/Passwort-Inputs + Validation. Submit ruft
+ * AuthContext.login() mit Dummy-Token auf (Sprint-1 Fake-Login, echter
+ * Server-Call kommt in PQC-59 APP-6 secureClient).
  *
- * Google/Microsoft sind Placeholder-Buttons (OAuth-Flow folgt in PQC-60/61).
+ * Google-Button (PQC-60 APP-7) ruft `loginWithProvider("google")` und
+ * persistiert den Broker-Token im AuthContext. Live-Demo-Limitation siehe
+ * F-086 (redirect_uri Server-Side, App-Side-Return blocked bis OAuth-App-
+ * Type-Switch zu iOS/Custom-Scheme in Sprint-3).
+ *
+ * Microsoft-Button bleibt Placeholder bis PQC-61 APP-8.
  */
 
 import { router } from "expo-router";
@@ -21,6 +26,7 @@ import {
 } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { loginWithProvider, OAuthError } from "@/lib/oauthClient";
 
 // Dummy-Token fuer Sprint-1 Fake-Login. ML-DSA-65-signed JWS-Compact-Format
 // (header.payload.signature, alle base64url) damit jwt-decode + exp-Check
@@ -87,10 +93,28 @@ export default function LoginScreen() {
     }
   }
 
-  function handleOAuthPlaceholder(provider: "Google" | "Microsoft") {
+  async function handleGoogleLogin() {
+    setIsSubmitting(true);
+    try {
+      const result = await loginWithProvider("google");
+      // AC-5: Broker-Token in AuthContext, Navigation zu /home.
+      await login(result.broker_token);
+      router.replace("/home");
+    } catch (err) {
+      const message =
+        err instanceof OAuthError
+          ? `${err.message}${err.reason ? ` (${err.reason})` : ""}`
+          : String(err);
+      Alert.alert("Google Login fehlgeschlagen", message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function handleOAuthPlaceholder(provider: "Microsoft") {
     Alert.alert(
       `${provider} Login`,
-      `OAuth-Flow kommt in PQC-${provider === "Google" ? "60 (APP-7)" : "61 (APP-8)"}.`,
+      `OAuth-Flow kommt in PQC-61 (APP-8).`,
     );
   }
 
@@ -159,7 +183,7 @@ export default function LoginScreen() {
 
         <Pressable
           style={styles.button}
-          onPress={() => handleOAuthPlaceholder("Google")}
+          onPress={handleGoogleLogin}
           disabled={isSubmitting}
         >
           <Text style={styles.buttonText}>Continue with Google</Text>
