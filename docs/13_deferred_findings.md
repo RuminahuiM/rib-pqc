@@ -651,4 +651,19 @@ nginx X25519MLKEM768-Konfiguration: AC-Cross-Reference auf PQC-18 INF-4 (Foundat
 
 ### Historie-Update 17.06.2026 (PQC-43)
 
-TLS-Foundation aus P
+TLS-Foundation aus PQC-18 wird durch PQC-43 cross-referenced. Sprint-2 Done-SP: 43.
+
+
+## Findings aus PQC-44 (TLS-2) Code-Review am 17.06.2026
+
+PQ-TLS-Handshake-Verifikations-Skript erstellt. Live-Demo deferred zu User-Action mit laufendem Container.
+
+### Tier-2 (User-Action)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-084 | AC-3 Live-Demo-Log noch nicht erzeugt (User fuehrt scripts/verify_pq_tls.sh aus mit laufendem pqc-nginx-Container und kopiert Output in sprint_journal/sprint_2/demos/). | May | vor Bericht-Abgabe | open (User-Action) |
+
+### Historie-Update 17.06.2026 (PQC-44)
+
+Sprint-2 Done-SP: 45. T
