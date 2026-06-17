@@ -23,6 +23,8 @@ dependencies = [
     "argon2-cffi >=23.1,<24.0",
     "slowapi >=0.1.9,<0.2",
     "redis >=5.0,<7.0",
+    "pyjwt[crypto] >=2.10,<3.0",
+    "httpx >=0.27,<0.30",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +36,8 @@ dev = [
     "pytest-cov >=5.0,<7.0",
     "httpx >=0.27,<0.30",
     "types-pyyaml >=6.0,<7.0",
+    "fakeredis >=2.20,<3.0",
+    "respx >=0.21,<1.0",
 ]
 
 [build-system]
@@ -161,4 +165,6 @@ dev-dependencies = [
     "pytest-cov >=5.0,<7.0",
     "httpx >=0.27,<0.30",
     "types-pyyaml >=6.0,<7.0",
+    "fakeredis >=2.20,<3.0",
+    "respx >=0.21,<1.0",
 ]

@@ -34,7 +34,7 @@ from idp.registry import (
     RegistryError,
     UnknownProviderError,
 )
-from idp.registry_init import init_idp_registry
+from idp.registry_init import IdpConfigError, init_idp_registry
 
 # ---------------------------------------------------------------------------
 # IdpRegistry: Happy-Path (AC-1)
@@ -186,25 +186,11 @@ def test_google_plugin_claim_mapper_is_stub() -> None:
     assert "PQC-39" in str(exc.value)
 
 
-def test_google_plugin_verify_id_token_is_stub() -> None:
-    plugin = _google_plugin()
-    with pytest.raises(NotImplementedError) as exc:
-        plugin.verify_id_token("not-a-real-token")
-    assert "PQC-38" in str(exc.value)
-
-
 def test_microsoft_plugin_claim_mapper_is_stub() -> None:
     plugin = _microsoft_plugin()
     with pytest.raises(NotImplementedError) as exc:
         plugin.claim_mapper({"oid": "abc-def"})
     assert "PQC-39" in str(exc.value)
-
-
-def test_microsoft_plugin_verify_id_token_is_stub() -> None:
-    plugin = _microsoft_plugin()
-    with pytest.raises(NotImplementedError) as exc:
-        plugin.verify_id_token("not-a-real-token")
-    assert "PQC-38" in str(exc.value)
 
 
 # ---------------------------------------------------------------------------
@@ -288,3 +274,122 @@ def test_init_propagates_microsoft_tenant_to_plugin() -> None:
     assert isinstance(plugin, MicrosoftIdpPlugin)
     assert plugin.tenant_id == "my-fancy-tenant"
     assert "my-fancy-tenant" in plugin.discovery_url
+
+
+# ---------------------------------------------------------------------------
+# F-058 Fix (in PQC-37 BRK-2): Misconfig-Validation at startup
+# ---------------------------------------------------------------------------
+
+
+def test_init_raises_when_google_enabled_without_client_id() -> None:
+    settings = Settings(
+        idp_providers=IdpProvidersConfig(
+            google=GoogleProviderConfig(
+                enabled=True,
+                client_id="",
+                client_secret="g-secret",
+                redirect_uri="http://localhost:8000/auth/google/callback",
+            ),
+        )
+    )
+    with pytest.raises(IdpConfigError) as exc:
+        init_idp_registry(settings)
+    assert "google" in str(exc.value)
+    assert "client_id" in str(exc.value)
+
+
+def test_init_raises_when_google_enabled_without_client_secret() -> None:
+    settings = Settings(
+        idp_providers=IdpProvidersConfig(
+            google=GoogleProviderConfig(
+                enabled=True,
+                client_id="g-id",
+                client_secret="",
+                redirect_uri="http://localhost:8000/auth/google/callback",
+            ),
+        )
+    )
+    with pytest.raises(IdpConfigError) as exc:
+        init_idp_registry(settings)
+    assert "client_secret" in str(exc.value)
+
+
+def test_init_raises_when_google_enabled_without_redirect_uri() -> None:
+    settings = Settings(
+        idp_providers=IdpProvidersConfig(
+            google=GoogleProviderConfig(
+                enabled=True,
+                client_id="g-id",
+                client_secret="g-secret",
+                redirect_uri="",
+            ),
+        )
+    )
+    with pytest.raises(IdpConfigError) as exc:
+        init_idp_registry(settings)
+    assert "redirect_uri" in str(exc.value)
+
+
+def test_init_raises_when_microsoft_enabled_without_tenant_id() -> None:
+    """tenant_id ist fuer Microsoft Single-Tenant kritisch (sonst falscher Issuer)."""
+    settings = Settings(
+        idp_providers=IdpProvidersConfig(
+            microsoft=MicrosoftProviderConfig(
+                enabled=True,
+                client_id="m-id",
+                client_secret="m-secret",
+                redirect_uri="http://localhost:8000/auth/microsoft/callback",
+                tenant_id="",
+            ),
+        )
+    )
+    with pytest.raises(IdpConfigError) as exc:
+        init_idp_registry(settings)
+    assert "microsoft" in str(exc.value)
+    assert "tenant_id" in str(exc.value)
+
+
+def test_init_error_lists_all_missing_fields_for_provider() -> None:
+    """Operationaler Hint: Fehlermeldung zeigt alle leeren Felder auf einmal."""
+    settings = Settings(
+        idp_providers=IdpProvidersConfig(
+            google=GoogleProviderConfig(
+                enabled=True,
+                client_id="",
+                client_secret="",
+                redirect_uri="",
+            ),
+        )
+    )
+    with pytest.raises(IdpConfigError) as exc:
+        init_idp_registry(settings)
+    msg = str(exc.value)
+    assert "client_id" in msg
+    assert "client_secret" in msg
+    assert "redirect_uri" in msg
+
+
+def test_idp_config_error_is_registry_error() -> None:
+    """IdpConfigError soll via RegistryError-Base abfangbar sein."""
+    assert issubclass(IdpConfigError, RegistryError)
+
+
+def test_init_does_not_validate_disabled_provider() -> None:
+    """Disabled-Provider duerfen Stub-Configs haben ohne dass es kracht."""
+    settings = Settings(
+        idp_providers=IdpProvidersConfig(
+            google=GoogleProviderConfig(
+                enabled=False,
+                client_id="",
+                client_secret="",
+                redirect_uri="",
+            ),
+            microsoft=MicrosoftProviderConfig(
+                enabled=False,
+                tenant_id="",
+            ),
+        )
+    )
+    # darf nicht raisen
+    registry = init_idp_registry(settings)
+    assert registry.supported() == []

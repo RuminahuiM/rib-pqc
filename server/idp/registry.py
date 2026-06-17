@@ -111,12 +111,19 @@ class IdpProvider(Protocol):
         """
         ...
 
-    def verify_id_token(self, token: str) -> dict[str, Any]:
+    async def verify_id_token(
+        self,
+        token: str,
+        *,
+        jwks_uri: str,
+        verifier: Any,
+    ) -> dict[str, Any]:
         """Verifiziert die JWS-Signature des ID-Tokens gegen Provider-JWKS.
 
-        Voll implementiert in PQC-38 (BRK-3 ID-Token-Verifikation).
+        Story-Bezug: PQC-38 (BRK-3 ID-Token-Verifikation).
         Returns: dekodierter Token-Payload bei Erfolg.
-        Raises: provider-spezifische Exceptions bei ungueltigem Token.
+        Raises: IdTokenVerifyError bei ungueltigem Token oder provider-spezifischem
+            Claim-Mismatch.
         """
         ...
 

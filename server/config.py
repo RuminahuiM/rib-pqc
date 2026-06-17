@@ -175,6 +175,32 @@ class SecurityConfig(BaseModel):
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
 
 
+class OidcConfig(BaseModel):
+    """OIDC-Federation-Konfiguration (Stories PQC-37 BRK-2, PQC-42 BRK-7).
+
+    - ``state_ttl_seconds``: TTL fuer State+PKCE-Eintrag im Redis (BRK-7 AC-5
+      sagt 10 Min Default, Best-Practice-2026 RFC 9700).
+    - ``discovery_cache_ttl_seconds``: TTL fuer Provider-Discovery-Doc plus
+      JWKS-Cache. 24h ist 2026-Standard, deckt JWKS-Rotation-Frequency ab
+      ohne pro Login-Flow neu zu fetchen.
+    - ``state_redis_db``: Separate Redis-DB-Nummer fuer den State-Store
+      (Default 2), getrennt von Rate-Limit-DB (1) und Allgemein (0).
+    - ``http_timeout_seconds``: Timeout fuer IdP-HTTP-Calls
+      (Discovery + Token-Exchange + JWKS).
+    """
+
+    state_ttl_seconds: int = Field(default=600, ge=60, le=3600)
+    discovery_cache_ttl_seconds: int = Field(default=86400, ge=3600)
+    state_redis_db: int = Field(default=2, ge=0, le=15)
+    http_timeout_seconds: float = Field(default=10.0, gt=0)
+    # PQC-38 BRK-3: JWKS-Cache fuer ID-Token-Verify. Kuerzer als Discovery-Cache
+    # weil Provider-Keys haeufiger rotieren (Best Practice 2026).
+    jwks_cache_ttl_seconds: int = Field(default=3600, ge=300)
+    # PQC-38 BRK-3: Leeway fuer exp-Check (Clock-Skew zwischen Auth-Service und IdP).
+    # Analog token.exp_leeway_seconds aus PQC-32 TOK-1.
+    id_token_exp_leeway_seconds: int = Field(default=30, ge=0, le=300)
+
+
 # ---------------------------------------------------------------------------
 # IdP Provider Federation (Stories PQC-84 BRK-0, PQC-36 BRK-1)
 # ---------------------------------------------------------------------------
@@ -278,89 +304,7 @@ class Settings(BaseSettings):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     idp_providers: IdpProvidersConfig = Field(default_factory=IdpProvidersConfig)
-
-    @classmethod
-    def settings_customise_sources(  # type: ignore[override]
-        cls,
-        settings_cls: type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
-    ) -> tuple[PydanticBaseSettingsSource, ...]:
-        yaml_path_str = os.environ.get(_CONFIG_FILE_ENV)
-        yaml_path = Path(yaml_path_str) if yaml_path_str else _default_config_yaml()
-        return (
-            init_settings,
-            env_settings,
-            dotenv_settings,
-            YamlConfigSource(settings_cls, yaml_path),
-            file_secret_settings,
-        )
-
-
-@lru_cache(maxsize=1)
-def get_settings() -> Settings:
-    return Settings()
-Pattern siehe PQC-84 BRK-0 Evidence und docs/06_tech_stack.md.
-    """
-
-    tenant_id: str = Field(default="")
-
-    @property
-    def issuer(self) -> str:
-        """Komponiert den issuer aus tenant_id (Single-Tenant-Pattern)."""
-        return f"https://login.microsoftonline.com/{self.tenant_id}/v2.0"
-
-    @property
-    def discovery_url(self) -> str:
-        """Komponiert die discovery_url aus tenant_id."""
-        return (
-            f"https://login.microsoftonline.com/{self.tenant_id}"
-            f"/v2.0/.well-known/openid-configuration"
-        )
-
-
-class IdpProvidersConfig(BaseModel):
-    """Container fuer alle bekannten OIDC-Provider.
-
-    BRK-1 (PQC-36) registriert genau die Provider mit ``enabled=true`` in der
-    Registry. Neue Provider (z.B. Apple in STR-2 PQC-76) werden hier als
-    weiteres Feld plus Subklasse hinzugefuegt.
-    """
-
-    google: GoogleProviderConfig = Field(default_factory=GoogleProviderConfig)
-    microsoft: MicrosoftProviderConfig = Field(default_factory=MicrosoftProviderConfig)
-
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="RIB_",
-        env_file=(".env", "../.env"),
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-        env_nested_delimiter="__",
-    )
-
-    app_name: str = Field(default="rib-pqc-auth-service")
-    version: str = Field(default="0.1.0")
-    environment: Environment = Field(default="dev")
-
-    host: str = Field(default="0.0.0.0")  # noqa: S104
-    port: int = Field(default=8000, ge=1, le=65535)
-
-    log_level: LogLevel = Field(default="info")
-
-    sqlite_path: str = Field(default="/data/auth.sqlite")
-    redis_url: str = Field(default="redis://redis:6379/0")
-
-    crypto: CryptoConfig = Field(default_factory=CryptoConfig)
-    token: TokenConfig = Field(default_factory=TokenConfig)
-    argon2: Argon2Config = Field(default_factory=Argon2Config)
-    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
-    security: SecurityConfig = Field(default_factory=SecurityConfig)
-    idp_providers: IdpProvidersConfig = Field(default_factory=IdpProvidersConfig)
+    oidc: OidcConfig = Field(default_factory=OidcConfig)
 
     @classmethod
     def settings_customise_sources(  # type: ignore[override]

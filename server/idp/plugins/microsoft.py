@@ -2,16 +2,21 @@
 
 Stories:
 - PQC-36 (BRK-1): Plugin-Struktur mit Stubs.
-- PQC-41 (BRK-6): Voll-Implementation (verify_id_token mit MS-JWKS).
-- PQC-39 (BRK-4): claim_mapper-Logik (MS nutzt ``oid`` als stable tenant-ID).
-- PQC-38 (BRK-3): verify_id_token mit JWKS-Caching.
+- PQC-38 (BRK-3): verify_id_token voll-implementiert mit JWKS + Verifier + tid-Check.
+- PQC-41 (BRK-6): Wenn weitere provider-spezifische Logik dazukommt.
+- PQC-39 (BRK-4): claim_mapper-Logik.
 
-Microsoft-Convention:
+**Microsoft-Convention (Entra ID v2.0 Docs 2026):**
+
 - ``oid`` ist die stable Object-ID im Tenant (besser als ``sub`` weil
   ``sub`` pro App-Client pairwise ist).
 - ``preferred_username`` enthaelt UPN/Email.
-- ``tid`` Claim muss gegen unseren konfigurierten tenant_id geprueft werden.
-- Issuer ist ``https://login.microsoftonline.com/<tenant>/v2.0``.
+- ``tid`` Claim muss gegen unseren konfigurierten tenant_id geprueft werden,
+  sonst koennte ein Token aus einem anderen Tenant unsere App erreichen.
+- ``iss`` ist ``https://login.microsoftonline.com/<tenant>/v2.0`` (siehe
+  Plugin-Property).
+- ``aud`` ist unser Client-ID.
+- Sig-Algorithmus: RS256.
 """
 
 from __future__ import annotations
@@ -19,17 +24,16 @@ from __future__ import annotations
 from typing import Any
 
 from config import MicrosoftProviderConfig
+from services.id_token_verifier import IdTokenVerifier, IdTokenVerifyError
 
 
 class MicrosoftIdpPlugin:
-    """Microsoft Entra ID OIDC-Provider-Plugin (Single-Tenant).
-
-    Voll funktional fuer die passiven Properties (discovery_url, client_id,
-    scopes, tenant_id). ``claim_mapper`` und ``verify_id_token`` sind in BRK-1
-    Stubs; werden in BRK-4 / BRK-3 voll implementiert.
-    """
+    """Microsoft Entra ID OIDC-Provider-Plugin (Single-Tenant)."""
 
     name: str = "microsoft"
+
+    # Microsoft Entra ID v2.0 nutzt ausschliesslich RS256.
+    _ALLOWED_ALGS: tuple[str, ...] = ("RS256",)
 
     def __init__(self, config: MicrosoftProviderConfig) -> None:
         self._config = config
@@ -44,7 +48,6 @@ class MicrosoftIdpPlugin:
 
     @property
     def client_secret(self) -> str:
-        """Wird in BRK-2 OIDC-Code-Flow fuer Token-Exchange benoetigt."""
         return self._config.client_secret
 
     @property
@@ -66,35 +69,43 @@ class MicrosoftIdpPlugin:
     def claim_mapper(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Mappt Microsoft-Claims auf normalisierte User-Info.
 
-        STUB fuer BRK-1. Voll implementiert in PQC-39 (BRK-4 Identity-
-        Normalisierung). Geplante Logik:
-            external_sub = payload["oid"]   # tenant-stable Object-ID
-            email = payload.get("email") or payload.get("preferred_username")
-            email_verified = True  # Entra ID verifiziert UPN
-            display_name = payload.get("name")
-            # Plus: tid-Claim gegen self.tenant_id pruefen
+        STUB bis PQC-39 BRK-4 Identity-Normalisierung.
         """
         msg = (
-            "MicrosoftIdpPlugin.claim_mapper ist ein Stub in BRK-1. "
+            "MicrosoftIdpPlugin.claim_mapper ist ein Stub. "
             "Wird in PQC-39 BRK-4 Identity-Normalisierung voll implementiert."
         )
         raise NotImplementedError(msg)
 
-    def verify_id_token(self, token: str) -> dict[str, Any]:
-        """Verifiziert ID-Token-Signature gegen Microsoft-JWKS.
+    async def verify_id_token(
+        self,
+        token: str,
+        *,
+        jwks_uri: str,
+        verifier: IdTokenVerifier,
+    ) -> dict[str, Any]:
+        """Verifiziert Microsoft-ID-Token plus tid-Claim-Check.
 
-        STUB fuer BRK-1. Voll implementiert in PQC-38 (BRK-3 ID-Token-
-        Verifikation). Geplante Logik:
-            1. JWKS aus Discovery-Doc holen (cached)
-            2. JWS-Header lesen, kid extrahieren, passenden Public-Key holen
-            3. Signature verifizieren (RS256)
-            4. iss-Claim gegen ``self.issuer`` pruefen
-            5. aud-Claim gegen ``self.client_id`` pruefen
-            6. tid-Claim gegen ``self.tenant_id`` pruefen (Single-Tenant!)
-            7. exp-Claim pruefen (mit Leeway analog TokenService)
+        Story-Bezug: PQC-38 BRK-3 AC-2..AC-4. Zusaetzlich Microsoft-
+        spezifischer ``tid``-Check, der das Token einem konkreten Entra-ID-
+        Tenant zuordnet. Ohne diesen Check koennte ein Token aus einem
+        anderen Tenant theoretisch unsere App erreichen (Single-Tenant-Setup).
+
+        Returns: validierter Token-Payload-Dict.
+        Raises: IdTokenVerifyError bei Sig-/Claim-Fehler oder tid-Mismatch.
         """
-        msg = (
-            "MicrosoftIdpPlugin.verify_id_token ist ein Stub in BRK-1. "
-            "Wird in PQC-38 BRK-3 ID-Token-Verifikation voll implementiert."
+        payload = await verifier.verify(
+            token=token,
+            jwks_uri=jwks_uri,
+            issuer=self.issuer,
+            audience=self.client_id,
+            allowed_algs=list(self._ALLOWED_ALGS),
         )
-        raise NotImplementedError(msg)
+        token_tid = payload.get("tid")
+        if token_tid != self.tenant_id:
+            msg = (
+                f"Microsoft 'tid' claim mismatch: expected {self.tenant_id!r}, "
+                f"got {token_tid!r}"
+            )
+            raise IdTokenVerifyError(msg, reason="invalid_tenant")
+        return payload

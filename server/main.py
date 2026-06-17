@@ -45,7 +45,11 @@ from middleware import (
     SecurityHeadersMiddleware,
     register_rate_limit,
 )
-from routers import auth, dev_test, health
+from routers import auth, auth_federated, dev_test, health
+from services.id_token_verifier import IdTokenVerifier
+from services.oidc_exchange_service import OidcExchangeService
+from services.oidc_jwks_service import OidcJwksService
+from services.oidc_state_service import OidcStateService
 from services.token_service import TokenService
 
 if TYPE_CHECKING:
@@ -236,6 +240,40 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async_url_scheme=settings.database.async_url.split("://", 1)[0],
     )
 
+    # PQC-37 (BRK-2): Redis-Client + OIDC State + Exchange Services.
+    import redis.asyncio as redis_async  # noqa: PLC0415
+    import httpx  # noqa: PLC0415
+    redis_base = settings.redis_url.rsplit("/", 1)[0]
+    state_redis_url = f"{redis_base}/{settings.oidc.state_redis_db}"
+    oidc_redis = redis_async.from_url(state_redis_url, decode_responses=False)
+    oidc_state_service = OidcStateService(
+        redis_client=oidc_redis,
+        ttl_seconds=settings.oidc.state_ttl_seconds,
+    )
+    oidc_http_client = httpx.AsyncClient(timeout=settings.oidc.http_timeout_seconds)
+    oidc_exchange_service = OidcExchangeService(
+        http_client=oidc_http_client,
+        discovery_cache_ttl_seconds=settings.oidc.discovery_cache_ttl_seconds,
+    )
+    # PQC-38 BRK-3: JwksService + IdTokenVerifier teilen sich denselben
+    # httpx-Client wie OidcExchangeService (Connection-Pool wiederverwendet).
+    oidc_jwks_service = OidcJwksService(
+        http_client=oidc_http_client,
+        cache_ttl_seconds=settings.oidc.jwks_cache_ttl_seconds,
+    )
+    id_token_verifier = IdTokenVerifier(
+        jwks_service=oidc_jwks_service,
+        exp_leeway_seconds=settings.oidc.id_token_exp_leeway_seconds,
+    )
+    logger.info(
+        "oidc.services.initialized",
+        state_redis_url=state_redis_url,
+        state_ttl_seconds=settings.oidc.state_ttl_seconds,
+        discovery_cache_ttl_seconds=settings.oidc.discovery_cache_ttl_seconds,
+        jwks_cache_ttl_seconds=settings.oidc.jwks_cache_ttl_seconds,
+        id_token_exp_leeway_seconds=settings.oidc.id_token_exp_leeway_seconds,
+    )
+
     # State im App-Lifecycle ablegen.
     app.state.settings = settings
     app.state.crypto_registry = registry
@@ -247,9 +285,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.session_factory = session_factory
     app.state.password_hasher = password_hasher
     app.state.idp_registry = idp_registry
+    app.state.oidc_state_service = oidc_state_service
+    app.state.oidc_exchange_service = oidc_exchange_service
+    app.state.oidc_jwks_service = oidc_jwks_service
+    app.state.id_token_verifier = id_token_verifier
     try:
         yield
     finally:
+        await oidc_exchange_service.aclose()
+        await oidc_redis.aclose()
         await db_engine.dispose()
         logger.info("service.stop")
 
@@ -313,6 +357,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     # PQC-30 (AUT-3) + PQC-31 (AUT-4): Auth-Router
     app.include_router(auth.router)
+    # PQC-37 (BRK-2)
+    app.include_router(auth_federated.router)
     # PQC-83 (SEC-5) AC-5: Dev-only Rate-Limit-Test-Endpoint
     if settings.environment == "dev":
         app.include_router(dev_test.router)
