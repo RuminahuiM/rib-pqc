@@ -9,7 +9,7 @@ keine echten IdP-HTTP-Calls.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import AsyncMock
 
 import pytest
@@ -34,7 +34,7 @@ class _MockPlugin:
     client_id: str = "g-id"
     client_secret: str = "g-secret"
     redirect_uri: str = "http://localhost:8000/auth/google/callback"
-    scopes: list[str] = ["openid", "email", "profile"]
+    scopes: ClassVar[list[str]] = ["openid", "email", "profile"]
 
     async def verify_id_token(
         self,
@@ -45,7 +45,14 @@ class _MockPlugin:
     ) -> dict[str, Any]:
         """Mock-Verify: gibt Test-Claims zurueck. Override per Test mittels self._verify_result."""
         del token, jwks_uri, verifier
-        return getattr(self, "_verify_result", {"sub": "mock-user-id", "iss": "https://idp.example", "aud": "g-id", "email": "mock@example.com", "email_verified": True, "name": "Mock User"})
+        return getattr(self, "_verify_result", {
+            "sub": "mock-user-id",
+            "iss": "https://idp.example",
+            "aud": "g-id",
+            "email": "mock@example.com",
+            "email_verified": True,
+            "name": "Mock User",
+        })
 
     def claim_mapper(self, payload: dict[str, Any]) -> Any:
         """Mock-Mapper: nutzt echtes NormalizedIdentity damit Router-Logik echt durchlaeuft."""
@@ -64,6 +71,7 @@ def mock_state_service() -> AsyncMock:
     svc.create.return_value = "state-12345"
     svc.consume.return_value = StateEntry(
         provider="google",
+        code_verifier="A" * 64,
         created_at_iso="2026-06-17T10:00:00+00:00",
     )
     return svc
@@ -129,7 +137,7 @@ def test_authorize_happy_path(
     client: TestClient,
     mock_state_service: AsyncMock,
 ) -> None:
-    r = client.post("/auth/federated/google/authorize")
+    r = client.post("/auth/federated/google/authorize", json={"code_verifier": "A" * 64})
     assert r.status_code == 200
     body = r.json()
     assert body["state"] == "state-12345"
@@ -138,28 +146,32 @@ def test_authorize_happy_path(
     assert "redirect_uri=" in body["authorize_url"]
     assert "state=state-12345" in body["authorize_url"]
     assert "scope=openid+email+profile" in body["authorize_url"]
-    mock_state_service.create.assert_awaited_once_with(provider="google")
+    mock_state_service.create.assert_awaited_once_with(
+        provider="google", code_verifier="A" * 64
+    )
 
 
 def test_authorize_with_pkce_challenge(client: TestClient) -> None:
     r = client.post(
-        "/auth/federated/google/authorize?code_challenge=challengeABC",
+        "/auth/federated/google/authorize",
+        json={"code_verifier": "B" * 64},
     )
     assert r.status_code == 200
     body = r.json()
-    assert "code_challenge=challengeABC" in body["authorize_url"]
+    # Server hat S256 challenge selbst aus dem verifier berechnet
+    assert "code_challenge=" in body["authorize_url"]
     assert "code_challenge_method=S256" in body["authorize_url"]
 
 
 def test_authorize_unknown_provider_returns_404(client: TestClient) -> None:
-    r = client.post("/auth/federated/apple/authorize")
+    r = client.post("/auth/federated/apple/authorize", json={"code_verifier": "A" * 64})
     assert r.status_code == 404
     assert r.json()["detail"]["error"] == "unknown_provider"
 
 
 def test_authorize_provider_format_invalid_returns_422(client: TestClient) -> None:
     """Path-Pattern lehnt Grossbuchstaben + Sonderzeichen ab."""
-    r = client.post("/auth/federated/Google!/authorize")
+    r = client.post("/auth/federated/Google!/authorize", json={"code_verifier": "A" * 64})
     assert r.status_code == 422
 
 
@@ -168,7 +180,7 @@ def test_authorize_discovery_failure_returns_502(
     mock_exchange_service: AsyncMock,
 ) -> None:
     mock_exchange_service.get_discovery_document.side_effect = DiscoveryError("nope")
-    r = client.post("/auth/federated/google/authorize")
+    r = client.post("/auth/federated/google/authorize", json={"code_verifier": "A" * 64})
     assert r.status_code == 502
     assert r.json()["detail"]["error"] == "discovery_failed"
 
@@ -181,7 +193,6 @@ def test_authorize_discovery_failure_returns_502(
 def _callback_payload(**overrides: Any) -> dict[str, Any]:
     base = {
         "code": "auth-code-xyz",
-        "code_verifier": VALID_VERIFIER,
         "state": "state-12345",
     }
     base.update(overrides)
@@ -233,6 +244,7 @@ def test_callback_state_provider_mismatch_returns_400(
     """State wurde fuer Microsoft erzeugt, App POSTed an Google-Callback."""
     mock_state_service.consume.return_value = StateEntry(
         provider="microsoft",
+        code_verifier="A" * 64,
         created_at_iso="2026-06-17T10:00:00+00:00",
     )
     r = client.post("/auth/federated/google/callback", json=_callback_payload())
@@ -271,11 +283,11 @@ def test_callback_discovery_failure_returns_502(
     assert r.status_code == 502
 
 
-def test_callback_validates_code_verifier_length(client: TestClient) -> None:
-    """RFC 7636: 43-128 chars."""
+def test_authorize_requires_code_verifier_with_valid_length(client: TestClient) -> None:
+    """RFC 7636: 43-128 chars im Authorize-Body."""
     r = client.post(
-        "/auth/federated/google/callback",
-        json=_callback_payload(code_verifier="too-short"),
+        "/auth/federated/google/authorize",
+        json={"code_verifier": "too-short"},
     )
     assert r.status_code == 422
 

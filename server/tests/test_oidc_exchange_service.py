@@ -8,6 +8,8 @@ Discovery + Token-Exchange werden gegen erfundene URLs gemockt.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import httpx
 import pytest
 import pytest_asyncio
@@ -54,7 +56,7 @@ class _MockPlugin:
     client_id: str = "test-client-id"
     client_secret: str = "test-client-secret"
     redirect_uri: str = "http://localhost:8000/auth/mock/callback"
-    scopes: list[str] = ["openid", "email"]
+    scopes: ClassVar[list[str]] = ["openid", "email"]
 
 
 @pytest.fixture

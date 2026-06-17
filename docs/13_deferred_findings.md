@@ -618,4 +618,22 @@ Microsoft IdP-Plugin Voll-Demo: AC-Cross-Reference auf BRK-1..BRK-5. Keine Code-
 ### Historie-Update 17.06.2026 (PQC-41)
 
 End-to-End-Server-Pfad funktional komplett (BRK-0..BRK-6). Sprint-2 Done-SP:
-PQC-84 + PQC-36 + PQC-37 + PQC-38 + PQC-39 + PQC-40 + PQC
+PQC-84 + PQC-36 + PQC-37 + PQC-38 + PQC-39 + PQC-40 + PQC-41 = 36 SP.
+Restscope: BRK-7 Hardening, TLS-Pfad, App-Stories.
+
+
+## Findings aus PQC-42 (BRK-7) Code-Review am 17.06.2026
+
+CSRF/State+PKCE-Refactor zu Server-managed BFF-Pattern. AC-5 zu 100% erfuellt (code_verifier zusammen mit state in Redis, atomar consumed). F-063 durch dieses Refactor resolved.
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-063 | PKCE-Verifier Server-side code_challenge-Pruefung als Defense-in-Depth | Should | vor PQC-42 BRK-7 | resolved (PQC-42: code_verifier ist server-side gespeichert, App kann keinen anderen liefern als beim Authorize-Start) |
+| F-081 | AC-1 Spec sagt App-Gen-State, wir nutzen Server-Gen (BFF-Konvention RFC 9700). Bericht muss Abweichung mit Begruendung dokumentieren. | May | vor Bericht-Abgabe | open |
+
+### Historie-Update 17.06.2026 (PQC-42)
+
+End-to-End-OIDC-Server-Pfad nach PQC-42 vollstaendig: BRK-1..BRK-7 done.
+Sprint-2 Do

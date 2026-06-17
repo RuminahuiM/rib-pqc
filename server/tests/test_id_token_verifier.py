@@ -59,7 +59,7 @@ def _sign_token(
     alg: str = "RS256",
 ) -> str:
     """Signiert ein JWT mit dem Test-Private-Key. Default-Claims sind gueltig."""
-    now = int(dt.datetime.now(tz=dt.timezone.utc).timestamp())
+    now = int(dt.datetime.now(tz=dt.timezone.utc).timestamp())  # noqa: UP017
     payload = {
         "iss": "https://idp.example",
         "aud": "test-client-id",
@@ -185,7 +185,7 @@ async def test_verify_expired_token_raises(
 ) -> None:
     private_key, _ = keypair
     # exp in der Vergangenheit (jenseits des 30s Leeway)
-    now = int(dt.datetime.now(tz=dt.timezone.utc).timestamp())
+    now = int(dt.datetime.now(tz=dt.timezone.utc).timestamp())  # noqa: UP017
     token = _sign_token(
         private_key,
         payload_override={"exp": now - 3600, "iat": now - 7200},

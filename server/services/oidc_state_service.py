@@ -70,10 +70,17 @@ class StateNotFoundError(Exception):
 class StateEntry(BaseModel):
     """In-Memory-Repraesentation eines State-Eintrags.
 
-    Nur intern verwendet; nicht direkt API-exposed.
+    Story-Bezug: PQC-37 BRK-2 + PQC-42 BRK-7 AC-5.
+
+    Felder:
+    - provider: gewuenschter IdP-Name.
+    - code_verifier: PKCE-Verifier (RFC 7636, 43-128 chars), server-side
+      gespeichert. BFF-Pattern: Server reicht ihn beim Callback an IdP weiter.
+    - created_at_iso: Audit-Timestamp.
     """
 
     provider: str = Field(min_length=1)
+    code_verifier: str = Field(min_length=43, max_length=128)
     created_at_iso: str
 
 
@@ -125,7 +132,7 @@ class OidcStateService:
         self._redis = redis_client
         self._ttl = ttl_seconds
 
-    async def create(self, provider: str) -> str:
+    async def create(self, provider: str, code_verifier: str) -> str:
         """Erzeugt einen frischen State-Eintrag fuer ``provider`` und gibt den State-Wert zurueck.
 
         Args:
@@ -138,6 +145,7 @@ class OidcStateService:
         state_value = secrets.token_urlsafe(_STATE_BYTES)
         entry = StateEntry(
             provider=provider,
+            code_verifier=code_verifier,
             created_at_iso=datetime.now(tz=timezone.utc).isoformat()  # noqa: UP017 (Sandbox-Compat),
         )
         await self._redis.set(

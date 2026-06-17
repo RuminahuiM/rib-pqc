@@ -30,7 +30,6 @@ from db.repositories import UserIdentityRepository, UserRepository
 from idp.registry import IdpRegistry, UnknownProviderError
 from logging_config import get_logger
 from services.federated_identity_service import FederatedIdentityService
-from services.token_service import TokenService
 from services.id_token_verifier import IdTokenVerifier, IdTokenVerifyError
 from services.oidc_exchange_service import (
     CodeExchangeError,
@@ -38,6 +37,7 @@ from services.oidc_exchange_service import (
     OidcExchangeService,
 )
 from services.oidc_state_service import OidcStateService, StateNotFoundError
+from services.token_service import TokenService
 
 if TYPE_CHECKING:
     pass
@@ -52,6 +52,21 @@ router = APIRouter(prefix="/auth/federated", tags=["auth_federated"])
 # ---------------------------------------------------------------------------
 
 
+class AuthorizeStartRequest(BaseModel):
+    """Body fuer POST /auth/federated/{provider}/authorize.
+
+    Story-Bezug: PQC-42 BRK-7 AC-5. App generiert PKCE-Verifier (RFC 7636,
+    43-128 chars urlsafe-base64) und schickt ihn zum Server. Server speichert
+    ihn server-side (BFF-Pattern), berechnet code_challenge = S256(verifier)
+    und baut die Authorize-URL.
+
+    Beim Callback nimmt der Server den code_verifier wieder aus dem Redis-
+    State-Eintrag - die App schickt ihn nicht mehr explizit.
+    """
+
+    code_verifier: str = Field(min_length=43, max_length=128)
+
+
 class AuthorizeStartResponse(BaseModel):
     """Response fuer POST /auth/federated/{provider}/authorize."""
 
@@ -62,11 +77,13 @@ class AuthorizeStartResponse(BaseModel):
 class CallbackRequest(BaseModel):
     """Request fuer POST /auth/federated/{provider}/callback.
 
-    PQC-37 AC-1 erweitert um ``state`` (RFC 9700 BCP CSRF-Schutz, siehe PQC-42).
+    Story-Bezug: PQC-37 BRK-2 AC-1 + PQC-42 BRK-7 AC-5.
+    code_verifier wird NICHT mehr im Callback-Body erwartet (BFF-Pattern):
+    der Server hat ihn beim Authorize-Start in Redis abgelegt und liest ihn
+    beim Callback selbst raus.
     """
 
     code: str = Field(min_length=1, max_length=4096)
-    code_verifier: str = Field(min_length=43, max_length=128)  # RFC 7636
     state: str = Field(min_length=1, max_length=512)
 
 
@@ -133,23 +150,37 @@ def _get_plugin(request: Request, provider: str):
 async def start_authorize(
     request: Request,
     provider: Annotated[str, Path(min_length=1, max_length=32, pattern="^[a-z0-9_-]+$")],
-    code_challenge: Annotated[str, ...] = "",
+    payload: AuthorizeStartRequest,
 ) -> AuthorizeStartResponse:
-    """Startet den OIDC-Code-Flow.
+    """Startet den OIDC-Code-Flow (BFF + Server-managed PKCE).
 
-    Der Server generiert einen State-Wert, speichert ihn in Redis (mit TTL),
-    und baut die Authorize-URL fuer den IdP. Die App leitet den User mit
-    dieser URL weiter und behaelt ``state`` lokal um ihn im Callback zu echoen.
+    Story-Bezug: PQC-37 BRK-2 + PQC-42 BRK-7 AC-5.
 
-    Query-Param ``code_challenge`` ist der PKCE-S256-Hash des App-seitigen
-    Verifiers (RFC 7636). Wird in die Authorize-URL durchgereicht.
+    Server-Side-Flow:
+    1. App generiert code_verifier (RFC 7636, 43-128 chars urlsafe-base64).
+    2. App POSTet code_verifier zum Authorize-Endpoint.
+    3. Server generiert state, speichert {provider, code_verifier} in Redis mit
+       TTL (One-Shot Replay-Schutz).
+    4. Server berechnet code_challenge = base64url(SHA256(code_verifier)).
+    5. Server baut Authorize-URL mit state, code_challenge, S256-method.
+    6. App leitet zur Authorize-URL, behaelt nur den state lokal fuer den
+       Callback-Echo.
     """
-    del code_challenge  # nur an URL durchreichen, Server speichert nichts dazu
+    import base64
+    import hashlib
 
     plugin = _get_plugin(request, provider)
     state_service: OidcStateService = request.app.state.oidc_state_service
 
-    state = await state_service.create(provider=provider)
+    # State + code_verifier server-side persistieren (AC-5).
+    state = await state_service.create(
+        provider=provider,
+        code_verifier=payload.code_verifier,
+    )
+
+    # PKCE-Challenge berechnen: S256 = base64url(SHA256(verifier)) ohne padding.
+    digest = hashlib.sha256(payload.code_verifier.encode("ascii")).digest()
+    code_challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
 
     # Authorize-URL bauen. Der authorization_endpoint kommt aus dem Discovery-
     # Doc, das der Server cached. Wir fetchen es hier lazy um zu wissen wohin
@@ -189,10 +220,9 @@ async def start_authorize(
         # vom Aufrufer mitgegeben. Wir bauen es so dass die App diesen Param
         # nach dem authorize_url sehen kann.
     }
-    code_challenge_value = request.query_params.get("code_challenge")
-    if code_challenge_value:
-        query_params["code_challenge"] = code_challenge_value
-        query_params["code_challenge_method"] = "S256"
+    # PKCE-Challenge ist server-computed (BRK-7 AC-5).
+    query_params["code_challenge"] = code_challenge
+    query_params["code_challenge_method"] = "S256"
 
     sep = "&" if "?" in authz_endpoint else "?"
     authorize_url = f"{authz_endpoint}{sep}{urlencode(query_params)}"
@@ -201,7 +231,6 @@ async def start_authorize(
         "auth_federated.authorize_start",
         provider=provider,
         state_len=len(state),
-        has_pkce=code_challenge_value is not None,
     )
 
     return AuthorizeStartResponse(authorize_url=authorize_url, state=state)
@@ -237,7 +266,8 @@ async def callback(
     state_service: OidcStateService = request.app.state.oidc_state_service
     exchange_service: OidcExchangeService = request.app.state.oidc_exchange_service
 
-    # State-Validation. One-Shot via consume.
+    # State-Validation. One-Shot via consume (One-Shot Replay-Schutz fuer
+    # state UND code_verifier). PQC-42 BRK-7 AC-5.
     try:
         state_entry = await state_service.consume(payload.state)
     except StateNotFoundError as exc:
@@ -249,6 +279,9 @@ async def callback(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "invalid_state"},
         ) from exc
+
+    # PKCE-Verifier kommt aus dem Redis-State-Eintrag (BFF-Pattern, AC-5).
+    code_verifier_from_state = state_entry.code_verifier
 
     # State-Provider muss zum Path-Param matchen. Schutz gegen Provider-
     # Mix-up (z.B. State fuer Google in /microsoft/callback gepostet).
@@ -268,7 +301,7 @@ async def callback(
         result = await exchange_service.exchange_code(
             plugin=plugin,
             code=payload.code,
-            code_verifier=payload.code_verifier,
+            code_verifier=code_verifier_from_state,
         )
     except DiscoveryError as exc:
         logger.error(
@@ -388,7 +421,7 @@ async def callback(
         auth_method=user_auth_method,
         external_sub=normalized.external_sub,
     )
-    broker_token_ttl = token_service._ttl  # noqa: SLF001
+    broker_token_ttl = token_service._ttl
     logger.info(
         "auth_federated.broker_token_issued",
         provider=provider,
