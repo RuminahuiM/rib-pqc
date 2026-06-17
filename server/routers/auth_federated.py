@@ -26,8 +26,10 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import APIRouter, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
 
+from db.repositories import UserIdentityRepository, UserRepository
 from idp.registry import IdpRegistry, UnknownProviderError
 from logging_config import get_logger
+from services.federated_identity_service import FederatedIdentityService
 from services.id_token_verifier import IdTokenVerifier, IdTokenVerifyError
 from services.oidc_exchange_service import (
     CodeExchangeError,
@@ -67,13 +69,29 @@ class CallbackRequest(BaseModel):
     state: str = Field(min_length=1, max_length=512)
 
 
+class FederatedUserInfo(BaseModel):
+    """User-Info Slim-DTO im Callback-Response.
+
+    Story-Bezug: PQC-39 BRK-4. App bekommt die interne User-Identitaet,
+    damit sie sie an spaetere Requests anhaengen kann (z.B. via Broker-Token).
+    """
+
+    id: str
+    email: str
+    auth_method: str
+
+
 class CallbackResponse(BaseModel):
-    """Response fuer POST /auth/federated/{provider}/callback (AC-5)."""
+    """Response fuer POST /auth/federated/{provider}/callback.
+
+    Story-Bezug: PQC-37 BRK-2 AC-5 plus PQC-39 BRK-4 (user-Field).
+    """
 
     id_token: str
     access_token: str | None = None
     expires_in: int | None = None
     token_type: str = "Bearer"  # noqa: S105 (OAuth token type, not a password)
+    user: FederatedUserInfo
 
 
 # ---------------------------------------------------------------------------
@@ -313,12 +331,47 @@ async def callback(
             },
         ) from exc
 
-    # Verified-Claims werden in BRK-4 (PQC-39) durch claim_mapper normalisiert.
-    # Heute: nur Logging, ID-Token wird unveraendert weitergegeben.
     logger.info(
         "auth_federated.id_token_verified",
         provider=provider,
         sub=verified_claims.get("sub"),
+    )
+
+    # PQC-39 (BRK-4) AC-1..AC-4, AC-6: claim_mapper + link_or_create.
+    try:
+        normalized = plugin.claim_mapper(verified_claims)
+    except ValueError as exc:
+        logger.error(
+            "auth_federated.claim_mapper_failed",
+            provider=provider,
+            error=str(exc),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "claim_mapper_failed"},
+        ) from exc
+
+    # Per-Request DB-Session aus app.state.session_factory.
+    session_factory = request.app.state.session_factory
+    async with session_factory() as session:
+        user_repo = UserRepository(session)
+        identity_repo = UserIdentityRepository(session)
+        identity_service = FederatedIdentityService(
+            user_repository=user_repo,
+            identity_repository=identity_repo,
+        )
+        user = await identity_service.link_or_create(
+            provider=provider,
+            normalized=normalized,
+        )
+        user_id = user.id
+        user_email = user.email
+        user_auth_method = user.auth_method
+
+    logger.info(
+        "auth_federated.user_resolved",
+        provider=provider,
+        user_id=user_id,
     )
 
     logger.info(
@@ -335,4 +388,9 @@ async def callback(
         access_token=result.access_token,
         expires_in=result.expires_in,
         token_type=result.token_type,
+        user=FederatedUserInfo(
+            id=user_id,
+            email=user_email,
+            auth_method=user_auth_method,
+        ),
     )

@@ -178,21 +178,6 @@ def test_microsoft_plugin_properties() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_google_plugin_claim_mapper_is_stub() -> None:
-    plugin = _google_plugin()
-    with pytest.raises(NotImplementedError) as exc:
-        plugin.claim_mapper({"sub": "1234567890"})
-    # Hint auf voll-implementierende Story muss in der Message stehen.
-    assert "PQC-39" in str(exc.value)
-
-
-def test_microsoft_plugin_claim_mapper_is_stub() -> None:
-    plugin = _microsoft_plugin()
-    with pytest.raises(NotImplementedError) as exc:
-        plugin.claim_mapper({"oid": "abc-def"})
-    assert "PQC-39" in str(exc.value)
-
-
 # ---------------------------------------------------------------------------
 # init_idp_registry (AC-3)
 # ---------------------------------------------------------------------------
@@ -393,3 +378,85 @@ def test_init_does_not_validate_disabled_provider() -> None:
     # darf nicht raisen
     registry = init_idp_registry(settings)
     assert registry.supported() == []
+
+
+# ---------------------------------------------------------------------------
+# Plugin claim_mapper Voll-Impl (PQC-39 AC-3)
+# ---------------------------------------------------------------------------
+
+
+def test_google_claim_mapper_happy_path() -> None:
+    plugin = _google_plugin()
+    result = plugin.claim_mapper({
+        "sub": "1234567890",
+        "email": "alice@example.com",
+        "email_verified": True,
+        "name": "Alice",
+        "given_name": "Alice",
+    })
+    assert result.external_sub == "1234567890"
+    assert result.email == "alice@example.com"
+    assert result.email_verified is True
+    assert result.display_name == "Alice"
+
+
+def test_google_claim_mapper_email_unverified() -> None:
+    plugin = _google_plugin()
+    result = plugin.claim_mapper({
+        "sub": "x",
+        "email": "x@example.com",
+        "email_verified": False,
+    })
+    assert result.email_verified is False
+
+
+def test_google_claim_mapper_missing_sub_raises() -> None:
+    plugin = _google_plugin()
+    with pytest.raises(ValueError):
+        plugin.claim_mapper({"email": "x@example.com"})
+
+
+def test_google_claim_mapper_fallback_given_name() -> None:
+    plugin = _google_plugin()
+    result = plugin.claim_mapper({
+        "sub": "x",
+        "given_name": "GivenOnly",
+    })
+    assert result.display_name == "GivenOnly"
+
+
+def test_microsoft_claim_mapper_happy_path_with_oid() -> None:
+    plugin = _microsoft_plugin()
+    result = plugin.claim_mapper({
+        "oid": "tenant-stable-oid",
+        "email": "bob@example.com",
+        "name": "Bob",
+        "tid": "tenant-abc",
+    })
+    assert result.external_sub == "tenant-stable-oid"
+    assert result.email == "bob@example.com"
+    assert result.email_verified is True
+    assert result.display_name == "Bob"
+
+
+def test_microsoft_claim_mapper_preferred_username_fallback() -> None:
+    plugin = _microsoft_plugin()
+    result = plugin.claim_mapper({
+        "oid": "x",
+        "preferred_username": "user@upn.example",
+    })
+    assert result.email == "user@upn.example"
+    assert result.email_verified is True
+
+
+def test_microsoft_claim_mapper_no_email_unverified() -> None:
+    plugin = _microsoft_plugin()
+    result = plugin.claim_mapper({"oid": "x"})
+    assert result.email is None
+    assert result.email_verified is False
+
+
+def test_microsoft_claim_mapper_missing_oid_raises() -> None:
+    plugin = _microsoft_plugin()
+    with pytest.raises(ValueError):
+        plugin.claim_mapper({"sub": "should-be-oid"})

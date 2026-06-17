@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import Any
 
 from config import GoogleProviderConfig
+from idp.normalized_identity import NormalizedIdentity
 from services.id_token_verifier import IdTokenVerifier
 
 
@@ -61,16 +62,30 @@ class GoogleIdpPlugin:
     def redirect_uri(self) -> str:
         return self._config.redirect_uri
 
-    def claim_mapper(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Mappt Google-Claims auf normalisierte User-Info.
+    def claim_mapper(self, payload: dict[str, Any]) -> NormalizedIdentity:
+        """Mappt Google-ID-Token-Claims auf NormalizedIdentity.
 
-        STUB bis PQC-39 BRK-4 Identity-Normalisierung.
+        Story-Bezug: PQC-39 BRK-4 AC-3.
+
+        Google-Claims-Konvention (OIDC Core + Google-Docs):
+        - ``sub``: stable Google-User-ID -> ``external_sub``.
+        - ``email``: optional, nur wenn scope ``email`` angefragt.
+        - ``email_verified``: bool, Google liefert true wenn Email bestaetigt.
+        - ``name``/``given_name``: anzeigbarer User-Name.
+
+        Raises:
+            ValueError: wenn ``sub`` fehlt.
         """
-        msg = (
-            "GoogleIdpPlugin.claim_mapper ist ein Stub. "
-            "Wird in PQC-39 BRK-4 Identity-Normalisierung voll implementiert."
+        sub = payload.get("sub")
+        if not sub:
+            msg = "Google ID-token payload is missing required 'sub' claim"
+            raise ValueError(msg)
+        return NormalizedIdentity(
+            external_sub=str(sub),
+            email=payload.get("email"),
+            email_verified=bool(payload.get("email_verified", False)),
+            display_name=payload.get("name") or payload.get("given_name"),
         )
-        raise NotImplementedError(msg)
 
     async def verify_id_token(
         self,

@@ -45,7 +45,17 @@ class _MockPlugin:
     ) -> dict[str, Any]:
         """Mock-Verify: gibt Test-Claims zurueck. Override per Test mittels self._verify_result."""
         del token, jwks_uri, verifier
-        return getattr(self, "_verify_result", {"sub": "mock-user-id", "iss": "https://idp.example", "aud": "g-id"})
+        return getattr(self, "_verify_result", {"sub": "mock-user-id", "iss": "https://idp.example", "aud": "g-id", "email": "mock@example.com", "email_verified": True, "name": "Mock User"})
+
+    def claim_mapper(self, payload: dict[str, Any]) -> Any:
+        """Mock-Mapper: nutzt echtes NormalizedIdentity damit Router-Logik echt durchlaeuft."""
+        from idp.normalized_identity import NormalizedIdentity
+        return NormalizedIdentity(
+            external_sub=str(payload.get("sub", "mock-user-id")),
+            email=payload.get("email"),
+            email_verified=bool(payload.get("email_verified", False)),
+            display_name=payload.get("name"),
+        )
 
 
 @pytest.fixture
@@ -79,6 +89,7 @@ def mock_exchange_service() -> AsyncMock:
 def test_app(
     mock_state_service: AsyncMock,
     mock_exchange_service: AsyncMock,
+    session_factory: Any,
 ) -> FastAPI:
     """FastAPI-App nur mit dem auth_federated-Router + mocked Services."""
     app = FastAPI()
@@ -94,6 +105,8 @@ def test_app(
     # ruft Plugin.verify_id_token den verifier auf - wir muessen den Plugin
     # Mock-fy oder den verify_id_token-Call mocken.
     app.state.id_token_verifier = AsyncMock()
+    # PQC-39 (BRK-4): session_factory wird vom Router fuer FederatedIdentityService gebraucht.
+    app.state.session_factory = session_factory
     return app
 
 

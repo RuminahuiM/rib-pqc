@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from config import MicrosoftProviderConfig
+from idp.normalized_identity import NormalizedIdentity
 from services.id_token_verifier import IdTokenVerifier, IdTokenVerifyError
 
 
@@ -66,16 +67,33 @@ class MicrosoftIdpPlugin:
     def redirect_uri(self) -> str:
         return self._config.redirect_uri
 
-    def claim_mapper(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Mappt Microsoft-Claims auf normalisierte User-Info.
+    def claim_mapper(self, payload: dict[str, Any]) -> NormalizedIdentity:
+        """Mappt Microsoft-ID-Token-Claims auf NormalizedIdentity.
 
-        STUB bis PQC-39 BRK-4 Identity-Normalisierung.
+        Story-Bezug: PQC-39 BRK-4 AC-3.
+
+        Microsoft-Claims-Konvention (Entra ID v2.0):
+        - ``oid``: stable Object-ID im Tenant -> ``external_sub``. Wird ``sub``
+          vorgezogen weil sub pro App-Client pairwise ist.
+        - ``email`` ODER ``preferred_username``: User-Email/UPN.
+        - ``email_verified``: Entra ID verifiziert UPN beim Account-Setup,
+          True wenn Email gesetzt ist.
+        - ``name``: anzeigbarer User-Name.
+
+        Raises:
+            ValueError: wenn ``oid`` fehlt.
         """
-        msg = (
-            "MicrosoftIdpPlugin.claim_mapper ist ein Stub. "
-            "Wird in PQC-39 BRK-4 Identity-Normalisierung voll implementiert."
+        oid = payload.get("oid")
+        if not oid:
+            msg = "Microsoft ID-token payload is missing required 'oid' claim"
+            raise ValueError(msg)
+        email = payload.get("email") or payload.get("preferred_username")
+        return NormalizedIdentity(
+            external_sub=str(oid),
+            email=email,
+            email_verified=email is not None,
+            display_name=payload.get("name"),
         )
-        raise NotImplementedError(msg)
 
     async def verify_id_token(
         self,

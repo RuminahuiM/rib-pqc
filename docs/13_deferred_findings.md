@@ -557,3 +557,29 @@ ID-Token-Verify-Foundation komplett: Server validiert JWS-Signature gegen
 Provider-JWKS (cached 1h), iss/aud/exp gepruefr, Algorithm-Pinning RS256-only,
 Microsoft tid-Defense-in-Depth. id_token ist ab jetzt trusted. PQC-39 BRK-4
 wird darauf claim_mapper bauen (normalisierte User-Identity).
+
+
+## Findings aus PQC-39 (BRK-4) Code-Review am 17.06.2026
+
+Identity-Normalisierung + Account-Linking implementiert. user_identities-Tabelle als 1:n-Aggregat, Plugin-claim_mapper voll-impl, FederatedIdentityService mit Spoof-Schutz bei email_unverified. 23 neue Tests, volle Suite 211 passed.
+
+### Tier-2 (Polish und Hardening)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-073 | User.auth_method + User.external_sub bleiben im Schema als Backward-Compat-Felder, werden ab BRK-4 nicht mehr authoritativ gelesen (user_identities ist die Wahrheit). | Info | Sprint 4 Schema-Cleanup: nullbar machen oder droppen | open |
+| F-074 | Microsoft-Plugin claim_mapper setzt email_verified=True wenn Email-Claim vorhanden. Edge-Case: external-collaborator-Accounts in einem Tenant koennten unverified UPN haben. RFC empfiehlt email_verified explizit aus Token zu lesen, Entra v2.0 liefert es selten. Konservativ nicht differenziert. | May | vor produktiver Demo / bei MS-External-Collaborator-Story | open |
+| F-075 | FederatedIdentityService.link_or_create macht 2-3 separate DB-Calls. Race-Condition bei parallelen First-Logins desselben Users (zweiter wuerde IdentityAlreadyExistsError werfen). Akzeptiert weil single-User-pro-Login Annahme. Production: in DB-Transaction + Retry. | Info | Sprint 4 oder bei Load-Test-Issues | open |
+| F-076 | Placeholder-Email `<sub>+<provider>@no-email.local` koennte theoretisch mit echten `.local`-Emails kollidieren. Extrem unwahrscheinlich. | Info | informational | open |
+| F-077 | Alembic-Migration spiegelt bestehende User.external_sub in user_identities. Bei teilweise gescheiterter Migration koennte Inkonsistenz entstehen. Akzeptiert weil Sprint-1-DB klein. | Info | bei DB-Restore-Test | open |
+
+### Historie-Update 17.06.2026 (PQC-39)
+
+End-to-End-Server-Pfad funktional komplett:
+- BRK-1 Plugin-Registry (PQC-36)
+- BRK-2 OIDC Code Flow + PKCE (PQC-37)
+- BRK-3 ID-Token-Verify (PQC-38)
+- BRK-4 Identity-Normalisierung + Account-Linking (PQC-39)
+
+Nach BRK-4 ist der Server bereit fuer App-Side-Story PQC-60 (Google-Login).
+BRK-5/6 (PQC-40/41) werden Polish-Stories, BRK-7 (PQC-42) ist

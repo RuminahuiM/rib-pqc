@@ -155,8 +155,14 @@ async def test_verify_invalid_signature_raises(
 ) -> None:
     private_key, _ = keypair
     token = _sign_token(private_key)
-    # Token an einer Stelle ueber den Sig-Teil tamper: letzte Char flippen
-    tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+    # Token-Sig tamper: ein Char in der Mitte des Signature-Teils flippen.
+    # JWT = header.payload.signature - wir tampern in der Sig (letzter Teil).
+    parts = token.split(".")
+    sig = parts[2]
+    # Char in der Mitte des Sig flippen (Char "A" wird zu "B" oder umgekehrt)
+    mid = len(sig) // 2
+    tampered_sig = sig[:mid] + ("A" if sig[mid] != "A" else "B") + sig[mid + 1 :]
+    tampered = f"{parts[0]}.{parts[1]}.{tampered_sig}"
     with pytest.raises(IdTokenVerifyError) as exc:
         await verifier_mocked.verify(
             token=tampered,
