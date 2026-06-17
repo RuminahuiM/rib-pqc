@@ -461,3 +461,48 @@ Expo-Go-Dev-Mode-Limitation dokumentiert (nicht App-Code-Bug). AC-4 von
 PQC-62 (Real-Phone Auto-Login nach App-Neustart) ist im Dev-Mode nicht
 voll verifizierbar; die secure-store-Mechanik (saveToken/loadToken/deleteToken)
 funktioniert aber im Live-Test bei Hot-Reload (in-process-Reload).
+
+
+## Findings aus PQC-84 (BRK-0) Code-Review am 03.06.2026 (Sprint-2-Start)
+
+OAuth-Apps bei Google und Microsoft registriert, Credentials in .env, Setup-
+Doku ergaenzt. Alle 5 AC live verifiziert (curl Discovery + Browser Authorize).
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-056 | Client-Secrets (Google + Microsoft) wurden waehrend des Story-Setups im Implementation-Chat-History exposed (Test-Account-Kontext, akzeptiertes Risk-Tradeoff im Studienprojekt). Best-Practice: am Sprint-2-Ende oder spaetestens vor produktiver Demo rotieren via Provider-Console "neues Geheimnis hinzufuegen" + altes loeschen | Info | Sprint 4 Polish, oder vor Bericht-Demo | open |
+| F-057 | server/config.yaml enthaelt aktuell nur einen Stub fuer idp_providers.google / idp_providers.microsoft. Echte Pydantic-IdpProvidersConfig-Klasse plus Settings-Verarbeitung kommt in PQC-36 BRK-1 (External-IdP-Registry) | Info | erledigt sobald PQC-36 in Progress geht | resolved (PQC-36 BRK-1, IdpProvidersConfig in config.py + Plugin-Adapter in server/idp/) |
+
+### Historie-Update 03.06.2026 (PQC-84)
+
+Sprint-2-Foundation gelegt: OAuth-Apps fuer Google und Microsoft sind
+registriert und Live-verifiziert. Damit ist R-T04 (OIDC-Provider-Setup-
+Komplexitaet) und R-S05 (Externe Approval-Wartezeit) mitigated. Single-Tenant
+Microsoft-Setup hatte keine Approval-Wartezeit, daher konnte BRK-0 schon Tag
+0 (vor dem geplanten Sprint-Start Sa 06.06) abgeschlossen werden.
+
+
+## Findings aus PQC-36 (BRK-1) Code-Review am 17.06.2026
+
+External-IdP-Registry Foundation gelegt: server/idp/ Modul mit Protocol +
+Registry + Plugin-Stubs (Google, Microsoft) + Bootstrap aus Pydantic-Settings.
+21 Tests gruen, kein Regress in der vollen Suite (125 passed).
+
+### Tier-2 (Polish und Should-Fix vor abhaengigen Stories)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-058 | `init_idp_registry` validiert nicht, dass `enabled=True` Provider tatsaechlich `client_id`, `client_secret` und `redirect_uri` befuellt haben. Misconfig (z.B. `RIB_IDP_PROVIDERS__GOOGLE__ENABLED=true` ohne Secret) fuehrt erst beim ersten OAuth-Flow-Request zur Fehlermeldung. Fail-fast at startup waere robuster. | Should | vor PQC-37 BRK-2 OIDC Code Flow PKCE | open |
+| F-059 | scopes-Default `["openid","email","profile"]` enthaelt kein `offline_access`. Refresh-Tokens werden in BRK-2 noch nicht gebraucht (Server-side Session via httpOnly-Cookie geplant), aber sobald die Refresh-Strategie entschieden ist, muss per Provider explizit ergaenzt werden. Google verwendet zusaetzlich `access_type=offline` Authorize-Param. | May | vor PQC-37 BRK-2 wenn Refresh-Strategie entschieden | open |
+| F-060 | server/README.md erwaehnt noch nicht das idp/-Modul und die Plugin-Architektur (analog zu der vorhandenen crypto/-Sektion). | May | Sprint 4 Doku-Polish oder bei naechster idp-Story (z.B. BRK-2 wenn das idp_registry zum ersten Mal verwendet wird) | open |
+| F-061 | IdpProvider Protocol verlangt `name` als Property, beide Plugins liefern es als Klassen-Attribut (str). isinstance-Check ist via strukturelles Subtyping gruen, aber asymmetrisch zu den anderen Properties. Kein funktionales Problem. | Info | optionales Cleanup beim naechsten idp/-Touch | open |
+
+### Historie-Update 17.06.2026 (PQC-36)
+
+External-IdP-Registry-Foundation gelegt. Damit ist die Plugin-Schnittstelle
+fuer alle nachfolgenden BRK-Stories etabliert. PQC-39 BRK-4 (claim_mapper-
+Voll) und PQC-38 BRK-3 (verify_id_token-Voll) werden die Plugin-Stub-Bodies
+ersetzen, ohne die Registry-API zu beruehren. F-057 wurde durch diese Story
+resolved.

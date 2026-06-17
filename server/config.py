@@ -175,6 +175,81 @@ class SecurityConfig(BaseModel):
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
 
 
+# ---------------------------------------------------------------------------
+# IdP Provider Federation (Stories PQC-84 BRK-0, PQC-36 BRK-1)
+# ---------------------------------------------------------------------------
+# Pro Provider eine Pydantic-Klasse. Gemeinsame Basis fuer Felder die alle
+# OIDC-Provider haben (issuer, discovery_url, redirect_uri, scopes, client_id,
+# client_secret). Provider-spezifische Felder (z.B. tenant_id fuer Microsoft)
+# in den Subklassen.
+#
+# BFF-Pattern (siehe PQC-84 Evidence): Server ist Confidential Client mit
+# client_secret. Client-Secret kommt aus ENV (RIB_IDP_PROVIDERS__<NAME>__CLIENT_SECRET),
+# YAML-Default ist Platzhalter "".
+
+
+class BaseProviderConfig(BaseModel):
+    """Gemeinsame Felder fuer alle OIDC-Provider-Configs."""
+
+    enabled: bool = Field(default=False)
+    redirect_uri: str = Field(default="")
+    scopes: list[str] = Field(default_factory=lambda: ["openid", "email", "profile"])
+    client_id: str = Field(default="")
+    client_secret: str = Field(default="")
+
+
+class GoogleProviderConfig(BaseProviderConfig):
+    """Google OIDC-Provider-Config.
+
+    issuer und discovery_url sind feste Google-Endpoints, daher hier als
+    Default. Override per YAML moeglich (z.B. fuer mock/test-Provider).
+    """
+
+    issuer: str = Field(default="https://accounts.google.com")
+    discovery_url: str = Field(
+        default="https://accounts.google.com/.well-known/openid-configuration"
+    )
+
+
+class MicrosoftProviderConfig(BaseProviderConfig):
+    """Microsoft Entra ID OIDC-Provider-Config (Single-Tenant).
+
+    Issuer und discovery_url werden zur Laufzeit aus dem ``tenant_id`` komponiert
+    weil sie tenant-spezifisch sind:
+        issuer = "https://login.microsoftonline.com/<tenant>/v2.0"
+        discovery_url = ".../<tenant>/v2.0/.well-known/openid-configuration"
+
+    Pattern siehe PQC-84 BRK-0 Evidence und docs/06_tech_stack.md.
+    """
+
+    tenant_id: str = Field(default="")
+
+    @property
+    def issuer(self) -> str:
+        """Komponiert den issuer aus tenant_id (Single-Tenant-Pattern)."""
+        return f"https://login.microsoftonline.com/{self.tenant_id}/v2.0"
+
+    @property
+    def discovery_url(self) -> str:
+        """Komponiert die discovery_url aus tenant_id."""
+        return (
+            f"https://login.microsoftonline.com/{self.tenant_id}"
+            f"/v2.0/.well-known/openid-configuration"
+        )
+
+
+class IdpProvidersConfig(BaseModel):
+    """Container fuer alle bekannten OIDC-Provider.
+
+    BRK-1 (PQC-36) registriert genau die Provider mit ``enabled=true`` in der
+    Registry. Neue Provider (z.B. Apple in STR-2 PQC-76) werden hier als
+    weiteres Feld plus Subklasse hinzugefuegt.
+    """
+
+    google: GoogleProviderConfig = Field(default_factory=GoogleProviderConfig)
+    microsoft: MicrosoftProviderConfig = Field(default_factory=MicrosoftProviderConfig)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="RIB_",
@@ -202,6 +277,90 @@ class Settings(BaseSettings):
     argon2: Argon2Config = Field(default_factory=Argon2Config)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
+    idp_providers: IdpProvidersConfig = Field(default_factory=IdpProvidersConfig)
+
+    @classmethod
+    def settings_customise_sources(  # type: ignore[override]
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        yaml_path_str = os.environ.get(_CONFIG_FILE_ENV)
+        yaml_path = Path(yaml_path_str) if yaml_path_str else _default_config_yaml()
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            YamlConfigSource(settings_cls, yaml_path),
+            file_secret_settings,
+        )
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
+Pattern siehe PQC-84 BRK-0 Evidence und docs/06_tech_stack.md.
+    """
+
+    tenant_id: str = Field(default="")
+
+    @property
+    def issuer(self) -> str:
+        """Komponiert den issuer aus tenant_id (Single-Tenant-Pattern)."""
+        return f"https://login.microsoftonline.com/{self.tenant_id}/v2.0"
+
+    @property
+    def discovery_url(self) -> str:
+        """Komponiert die discovery_url aus tenant_id."""
+        return (
+            f"https://login.microsoftonline.com/{self.tenant_id}"
+            f"/v2.0/.well-known/openid-configuration"
+        )
+
+
+class IdpProvidersConfig(BaseModel):
+    """Container fuer alle bekannten OIDC-Provider.
+
+    BRK-1 (PQC-36) registriert genau die Provider mit ``enabled=true`` in der
+    Registry. Neue Provider (z.B. Apple in STR-2 PQC-76) werden hier als
+    weiteres Feld plus Subklasse hinzugefuegt.
+    """
+
+    google: GoogleProviderConfig = Field(default_factory=GoogleProviderConfig)
+    microsoft: MicrosoftProviderConfig = Field(default_factory=MicrosoftProviderConfig)
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="RIB_",
+        env_file=(".env", "../.env"),
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+        env_nested_delimiter="__",
+    )
+
+    app_name: str = Field(default="rib-pqc-auth-service")
+    version: str = Field(default="0.1.0")
+    environment: Environment = Field(default="dev")
+
+    host: str = Field(default="0.0.0.0")  # noqa: S104
+    port: int = Field(default=8000, ge=1, le=65535)
+
+    log_level: LogLevel = Field(default="info")
+
+    sqlite_path: str = Field(default="/data/auth.sqlite")
+    redis_url: str = Field(default="redis://redis:6379/0")
+
+    crypto: CryptoConfig = Field(default_factory=CryptoConfig)
+    token: TokenConfig = Field(default_factory=TokenConfig)
+    argon2: Argon2Config = Field(default_factory=Argon2Config)
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
+    idp_providers: IdpProvidersConfig = Field(default_factory=IdpProvidersConfig)
 
     @classmethod
     def settings_customise_sources(  # type: ignore[override]

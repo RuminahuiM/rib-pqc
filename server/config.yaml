@@ -134,3 +134,51 @@ security:
     global_default: "60/minute"
     login_limit: "5/15minutes"
     storage_uri: "redis://redis:6379/1"
+
+# ---------------------------------------------------------------------------
+# OAuth Provider Federation (Stories PQC-84 BRK-0, PQC-36 BRK-1, BRK-5/6)
+# ---------------------------------------------------------------------------
+# Provider-Section-Stub. Echte Pydantic-IdpProvidersConfig-Klasse plus Settings-
+# Verarbeitung kommt in PQC-36 BRK-1 (External-IdP-Registry). Diese YAML-
+# Eintraege werden in BRK-1 von der IdpProvidersConfig-Klasse gelesen, BRK-5
+# und BRK-6 instantiieren die Plugins damit.
+#
+# Hinweis Secrets: Client-IDs sind nicht-geheim und stehen hier mit
+# ENV-Var-Interpolation (${...:default}). Client-Secrets sind geheim und
+# werden ausschliesslich ueber Environment ueberschrieben (RIB_-Praefix
+# Pydantic-Settings), die YAML-Defaults bleiben Platzhalter.
+#
+# BFF-Pattern (siehe server/README.md Abschnitt "OAuth Provider Setup"):
+# Server ist Confidential Client mit Client-Secret. Mobile-App empfaengt
+# Broker-Token via Deep-Link nach erfolgreichem Server-Side-Token-Exchange.
+
+idp_providers:
+  google:
+    enabled: true
+    issuer: "https://accounts.google.com"
+    discovery_url: "https://accounts.google.com/.well-known/openid-configuration"
+    redirect_uri: "http://localhost:8080/auth/oauth/google/callback"
+    scopes:
+      - "openid"
+      - "email"
+      - "profile"
+    # Client-ID via ENV: RIB_IDP_PROVIDERS__GOOGLE__CLIENT_ID
+    # Client-Secret via ENV: RIB_IDP_PROVIDERS__GOOGLE__CLIENT_SECRET
+    client_id: ""
+    client_secret: ""
+
+  microsoft:
+    enabled: true
+    # Single-Tenant. Tenant-ID per ENV ueberschreibbar.
+    tenant_id: ""
+    # Issuer und Discovery-URL haengen am Tenant; werden in BRK-6-Plugin
+    # zur Laufzeit komponiert (https://login.microsoftonline.com/<tenant>/v2.0).
+    redirect_uri: "http://localhost:8080/auth/oauth/microsoft/callback"
+    scopes:
+      - "openid"
+      - "email"
+      - "profile"
+    # Client-ID via ENV: RIB_IDP_PROVIDERS__MICROSOFT__CLIENT_ID
+    # Client-Secret via ENV: RIB_IDP_PROVIDERS__MICROSOFT__CLIENT_SECRET
+    client_id: ""
+    client_secret: ""

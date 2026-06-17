@@ -38,6 +38,7 @@ from crypto.facade import CryptoFacade
 from crypto.registry import CryptoRegistry
 from crypto.registry_init import init_crypto_registry
 from db.engine import create_engine_from_config, create_session_factory
+from idp.registry_init import init_idp_registry
 from logging_config import get_logger, setup_logging
 from middleware import (
     RequestIdMiddleware,
@@ -213,6 +214,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         exp_leeway_seconds=settings.token.exp_leeway_seconds,
     )
 
+    # PQC-36 (BRK-1): IdpRegistry initialisieren aus config.idp_providers.
+    # Plugin-Adapter werden hier registriert; BRK-2..BRK-6 verwenden sie via
+    # ``app.state.idp_registry``. Plugins haben in BRK-1 Stub-Bodies fuer
+    # claim_mapper und verify_id_token (NotImplementedError).
+    idp_registry = init_idp_registry(settings)
+    logger.info(
+        "idp.registry.initialized",
+        providers=idp_registry.supported(),
+    )
+
     # PQC-28 (AUT-1): Async-DB-Engine plus Session-Factory plus PasswordHasher.
     db_engine = create_engine_from_config(settings.database)
     session_factory = create_session_factory(db_engine)
@@ -235,6 +246,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.db_engine = db_engine
     app.state.session_factory = session_factory
     app.state.password_hasher = password_hasher
+    app.state.idp_registry = idp_registry
     try:
         yield
     finally:

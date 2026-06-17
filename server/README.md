@@ -114,3 +114,81 @@ Konkrete ENV-Variablen (Sprint 1):
 uvicorn- und FastAPI-Logs werden ueber die stdlib-Bridge auch durch den
 structlog-JSON-Formatter geleitet, damit alle Log-Eintraege ein konsistentes
 Schema haben.
+
+## OAuth Provider Setup (PQC-84 BRK-0)
+
+Federation-Stories BRK-1 bis BRK-7 brauchen OAuth-Apps bei Google und
+Microsoft. Diese Apps werden manuell in den Provider-Consoles registriert,
+Client-ID und Client-Secret landen in `infra/.env` (gitignored).
+
+### Google Cloud Console
+
+1. Account anlegen: separater Test-Google-Account (z.B. `rib-pqc-test@gmail.com`) statt privatem Account.
+2. Google Cloud Console (`https://console.cloud.google.com/`) -> neues Projekt `rib-pqc`.
+3. Branding-Page (Google Auth Platform): App-Name `rib-pqc`, Support-Email + Developer-Email setzen.
+4. Zielgruppe: `External`, App bleibt in Testing-Status. Test-User-Liste pflegen falls externe Tester die App benutzen sollen (sonst 403).
+5. Clients -> "OAuth-Client erstellen":
+   - Anwendungstyp: **Webanwendung**
+   - Name: `rib-pqc-dev`
+   - Autorisierte JavaScript-Quellen: `http://localhost:8080`
+   - Autorisierte Weiterleitungs-URIs: `http://localhost:8080/auth/oauth/google/callback`
+6. Client-ID + Client-Secret aus dem Modal (oder JSON-Download) sichern.
+
+**Discovery-URL fuer Verifikation:**
+`https://accounts.google.com/.well-known/openid-configuration` (liefert JSON
+mit `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `jwks_uri`).
+
+### Microsoft Entra ID (Azure AD)
+
+1. Azure Portal (`https://portal.azure.com/`) -> Microsoft Entra ID.
+2. App registrations -> "+ New registration":
+   - Name: `rib-pqc-dev`
+   - Supported account types: **Accounts in this organizational directory only (Single tenant)**
+   - Redirect URI: Platform `Web`, URI `http://localhost:8080/auth/oauth/microsoft/callback`
+3. Overview-Page: `Application (client) ID`, `Directory (tenant) ID` notieren.
+4. Certificates & secrets -> Client secrets -> "+ New client secret":
+   - Description: `rib-pqc-dev-secret`
+   - Expires: 180 days (default) bis 24 Monate
+   - **Value** sofort kopieren (wird nur einmal angezeigt). Secret-ID ist NICHT der Secret-Wert.
+5. API permissions -> Microsoft Graph -> Delegated:
+   - `openid`, `email`, `profile` (plus `User.Read` als Default)
+   - Optional: "Grant admin consent for <tenant>" damit der Consent-Bildschirm beim ersten Login uebersprungen wird.
+
+**Discovery-URL fuer Verifikation (Single-Tenant):**
+`https://login.microsoftonline.com/<TENANT_ID>/v2.0/.well-known/openid-configuration`
+
+### Credentials in `.env` ablegen
+
+`infra/.env.example` enthaelt die Variablennamen mit Platzhaltern. Lokale
+Kopie unter `infra/.env` (gitignored):
+
+```
+GOOGLE_OAUTH_CLIENT_ID=...apps.googleusercontent.com
+GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-...
+MICROSOFT_OAUTH_CLIENT_ID=<application-client-id-uuid>
+MICROSOFT_OAUTH_CLIENT_SECRET=<secret-value-not-secret-id>
+MICROSOFT_OAUTH_TENANT_ID=<directory-tenant-id-uuid>
+```
+
+### Dev vs Production: Redirect-URI
+
+Sprint 2 nutzt `http://localhost:8080/...` weil lokaler nginx Reverse-Proxy
+vor dem Auth-Service auf Port 8000 sitzt. Beide Provider erlauben das nur
+fuer localhost als Sonderfall.
+
+Production braucht eine echte Domain mit **HTTPS**:
+`https://<dein-domain>/auth/oauth/<provider>/callback`. Beide Provider
+erlauben mehrere Redirect-URIs pro App, daher kann die HTTPS-Production-URI
+bei spaeterem Deploy einfach zusaetzlich in der gleichen OAuth-App-Reg
+eingetragen werden. Localhost-URI bleibt parallel fuer weitere Dev-Arbeit.
+
+### Secret-Rotation
+
+Bei Secret-Exposition (z.B. accidentale Commit, Chat-Upload):
+
+- Google: Cloud Console -> Clients -> rib-pqc-dev -> "Neues Geheimnis hinzufuegen", altes loeschen
+- Microsoft: Azure Portal -> Entra ID -> App registrations -> rib-pqc-dev -> Certificates & secrets -> neues Secret erstellen, altes loeschen
+
+Alte Secret-Strings sind invalid sobald sie geloescht sind. `.env` muss
+entsprechend nachgepflegt werden, Container neu starten damit Auth-Service
+die neuen Werte laedt.

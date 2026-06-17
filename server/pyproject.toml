@@ -54,6 +54,7 @@ only-include = [
     "db",
     "auth",
     "middleware",
+    "idp",
     "config.yaml",
     "alembic",
     "alembic.ini",
@@ -95,7 +96,7 @@ check_untyped_defs = true
 no_implicit_optional = true
 pretty = true
 show_error_codes = true
-files = ["main.py", "admin.py", "config.py", "logging_config.py", "routers", "services", "models", "db", "auth", "middleware"]
+files = ["main.py", "admin.py", "config.py", "logging_config.py", "routers", "services", "models", "db", "auth", "middleware", "idp"]
 
 [[tool.mypy.overrides]]
 module = ["structlog.*"]
