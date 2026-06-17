@@ -707,4 +707,4 @@ Microsoft-Login App-Seite implementiert. Refactor zu generischem handleOAuthLogi
 
 **Sprint-2 funktional komplett:** PQC-84 + PQC-36 + PQC-37 + PQC-38 + PQC-39 + PQC-40 + PQC-41 + PQC-42 + PQC-43 + PQC-44 + PQC-45 + PQC-60 + PQC-61 = **57 SP** Done (92% von 62 SP geplant).
 
-Restscope: keine Must-Stories. Dem
+Restscope: keine Must-Stories. Demo-Session + Sprint-3 Doku-Polish + F-086 OAuth-App-Type-Switch.
