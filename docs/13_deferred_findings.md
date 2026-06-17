@@ -582,4 +582,24 @@ End-to-End-Server-Pfad funktional komplett:
 - BRK-4 Identity-Normalisierung + Account-Linking (PQC-39)
 
 Nach BRK-4 ist der Server bereit fuer App-Side-Story PQC-60 (Google-Login).
-BRK-5/6 (PQC-40/41) werden Polish-Stories, BRK-7 (PQC-42) ist
+BRK-5/6 (PQC-40/41) werden Polish-Stories, BRK-7 (PQC-42) ist Hardening,
+TLS-Stories (PQC-43/44/45) sind unabhaengiger Pfad.
+
+
+## Findings aus PQC-40 (BRK-5) Code-Review am 17.06.2026
+
+Google IdP-Plugin Voll-Demo: Broker-Token-Ausgabe im federated-Callback ergaenzt. AC-1..AC-4 schon durch BRK-1..BRK-4 erfuellt. AC-5 Code-Teil verifiziert, Live-Demo deferred zu PQC-60 APP-7.
+
+### Tier-2 (Polish)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-078 | TokenService._ttl Private-Access (Underscore) in routers/auth_federated.py und routers/auth.py. Sauber waere Public-Property TokenService.ttl. | Info | bei naechstem TokenService-Touch, mit F-021 buendeln | open |
+| F-079 | AC-5 Live-Demo in PQC-60 APP-7 cross-referenced. Bericht muss Cross-Story-Demo-Referenz erwaehnen. | May | vor Bericht-Abgabe | open |
+
+### Historie-Update 17.06.2026 (PQC-40)
+
+PQC-40 BRK-5 bestaetigt die Plugin-Architektur: BRK-1..BRK-4 hat 95% der
+Logik geliefert, BRK-5 fuegte nur die Broker-Token-Ausgabe + Demo-Doku
+hinzu. Neue Provider (Apple in STR-2 PQC-76) folgen demselben Muster:
+nur ihre Plug

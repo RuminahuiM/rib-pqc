@@ -107,6 +107,11 @@ def test_app(
     app.state.id_token_verifier = AsyncMock()
     # PQC-39 (BRK-4): session_factory wird vom Router fuer FederatedIdentityService gebraucht.
     app.state.session_factory = session_factory
+    # PQC-40 (BRK-5) AC-5: TokenService-Mock fuer Broker-Token-Ausgabe.
+    mock_token_service = type("MockTokenService", (), {})()
+    mock_token_service.issue = lambda *a, **kw: "mock.broker.token"
+    mock_token_service._ttl = 3600
+    app.state.token_service = mock_token_service
     return app
 
 
@@ -190,6 +195,17 @@ def test_callback_happy_path_returns_id_token(client: TestClient) -> None:
     assert body["id_token"] == "eyFAKE.id.token"
     assert body["access_token"] == "fake-access"
     assert body["expires_in"] == 3600
+
+
+def test_callback_returns_broker_token(client: TestClient) -> None:
+    """PQC-40 BRK-5 AC-5: Broker-Token wird ausgestellt (ML-DSA-65-signiertes JWS)."""
+    r = client.post("/auth/federated/google/callback", json=_callback_payload())
+    assert r.status_code == 200
+    body = r.json()
+    assert body["broker_token"] == "mock.broker.token"
+    assert body["broker_token_expires_in"] == 3600
+    # user-Info muss auch da sein (BRK-4)
+    assert body["user"]["auth_method"] in {"google", "local"}
 
 
 def test_callback_consumes_state_one_shot(

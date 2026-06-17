@@ -30,6 +30,7 @@ from db.repositories import UserIdentityRepository, UserRepository
 from idp.registry import IdpRegistry, UnknownProviderError
 from logging_config import get_logger
 from services.federated_identity_service import FederatedIdentityService
+from services.token_service import TokenService
 from services.id_token_verifier import IdTokenVerifier, IdTokenVerifyError
 from services.oidc_exchange_service import (
     CodeExchangeError,
@@ -84,7 +85,10 @@ class FederatedUserInfo(BaseModel):
 class CallbackResponse(BaseModel):
     """Response fuer POST /auth/federated/{provider}/callback.
 
-    Story-Bezug: PQC-37 BRK-2 AC-5 plus PQC-39 BRK-4 (user-Field).
+    Story-Bezug:
+    - PQC-37 BRK-2 AC-5 (id_token weitergereicht)
+    - PQC-39 BRK-4 (user-Field)
+    - PQC-40 BRK-5 AC-5 (broker_token: ML-DSA-65-signiertes JWS aus TokenService)
     """
 
     id_token: str
@@ -92,6 +96,8 @@ class CallbackResponse(BaseModel):
     expires_in: int | None = None
     token_type: str = "Bearer"  # noqa: S105 (OAuth token type, not a password)
     user: FederatedUserInfo
+    broker_token: str
+    broker_token_expires_in: int
 
 
 # ---------------------------------------------------------------------------
@@ -374,6 +380,22 @@ async def callback(
         user_id=user_id,
     )
 
+    # PQC-40 BRK-5 AC-5: Broker-Token ausstellen (ML-DSA-65-signiertes JWS).
+    # Pattern analog routers/auth.py PQC-30 AUT-3 lokaler Login.
+    token_service: TokenService = request.app.state.token_service
+    broker_token = token_service.issue(
+        user_id=user_id,
+        auth_method=user_auth_method,
+        external_sub=normalized.external_sub,
+    )
+    broker_token_ttl = token_service._ttl  # noqa: SLF001
+    logger.info(
+        "auth_federated.broker_token_issued",
+        provider=provider,
+        user_id=user_id,
+        ttl_seconds=broker_token_ttl,
+    )
+
     logger.info(
         "auth_federated.callback_success",
         provider=provider,
@@ -393,4 +415,6 @@ async def callback(
             email=user_email,
             auth_method=user_auth_method,
         ),
+        broker_token=broker_token,
+        broker_token_expires_in=broker_token_ttl,
     )
