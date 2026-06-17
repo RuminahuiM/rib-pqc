@@ -72,6 +72,7 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 | R-P03 | Krankheit oder unerwartete Ausfälle | Persönlich | Niedrig | Hoch | 3 | Monitor |
 | R-E01 | NIST-Standard-Updates während Projekt | Extern | Sehr niedrig | Niedrig | 1 | Accepted |
 | R-N01 | Expo SDK Version nicht in App Store Expo-Go-App verfügbar | Node/JS-Ökosystem | Hoch | Niedrig | 3 | Mitigated (30.05) |
+| R-T07 | Expo Deep-Link für OAuth-Callback im Expo Go nicht zuverlässig | Technisch | Mittel | Mittel | 4 | Active (Sprint 2) |
 
 ---
 
@@ -176,6 +177,23 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 - Standard-Patterns nutzen (redis-py async API).
 
 **Contingency:** Bei kritischen Bugs Fallback auf einfachen in-memory Store für die Demo. Trade-off im Bericht erwähnen.
+
+---
+
+### R-T07: Expo Deep-Link für OAuth-Callback im Expo Go nicht zuverlässig
+
+**Beschreibung:** Mobile-OAuth-Flows (APP-7 Google, APP-8 Microsoft) benötigen einen Deep-Link-Mechanismus damit der externe IdP nach dem User-Login wieder in die Expo-App zurückspringen kann. Die Expo-Go-App im App Store hat bekannte Edge-Cases beim Deep-Link-Handling (Custom-Scheme, Universal-Link), besonders bei iOS-Sandboxing. F-055 aus Sprint 1 hat ein ähnliches Phänomen bei Auto-Login nach Force-Close gezeigt: was in Dev-Mode funktioniert, kann im Expo-Go-Production-Pfad anders verhalten.
+
+**Probability:** Mittel (Pattern ist bekannt, aber nicht alle Quirks vorhersehbar) | **Impact:** Mittel (Sprint-Goal-Demo des Mobile-Login auf iPhone wäre eingeschränkt) | **Score:** 4
+
+**Konsequenz bei Eintritt:** APP-7 plus APP-8 Mobile-Demo-Flow ist nicht End-to-End auf iPhone reproduzierbar. Sprint-Goal Variante B müsste auf Variante "Server-Side Federation plus PQC-TLS plus reduzierte Mobile-Demo" angepasst werden.
+
+**Mitigation:**
+- expo-auth-session Library nutzen die Deep-Link-Handling abstrahiert.
+- Custom-Scheme `rib-pqc://` in app.json definieren plus bei Google/Microsoft OAuth-App als Redirect-URI eintragen.
+- Bei APP-7 Closing-Review explizit den Deep-Link-Pfad auf echtem iPhone testen (nicht nur Simulator).
+
+**Contingency:** Fallback auf manuellen Code-Copy-Flow für die Demo: User kopiert den OAuth-Callback-Code aus dem Browser-Tab in einen Input-Feld in der App. Nicht produktiv, aber demonstrierbar. Im Bericht als Limitation erwähnen, Production-Path braucht Custom-Build via EAS.
 
 ---
 

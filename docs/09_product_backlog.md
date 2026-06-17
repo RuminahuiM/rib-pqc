@@ -127,7 +127,7 @@ Die Story-Points und T-Shirt-Sizes in diesem Backlog sind als **klassische Solo-
 | CRY | Crypto-Abstraction-Layer | FR-Crypto-1 bis FR-Crypto-3, Design 2.1, 6.1 | 7 |
 | AUT | Local Authentication | UC-1, FR-Auth-1, FR-Auth-2, NFR-Sec-4 | 4 |
 | TOK | Token Service | FR-Token-1, FR-Token-2, FR-Token-3 | 4 |
-| BRK | Identity Broker / Federation | UC-2, UC-3, FR-Broker-1 bis FR-Broker-4, NFR-Sec-5 | 7 |
+| BRK | Identity Broker / Federation | UC-2, UC-3, FR-Broker-1 bis FR-Broker-4, NFR-Sec-5 | 8 |
 | TLS | Hybrid TLS Transport | NFR-Sec-1 | 3 |
 | SES | PQ Session | UC-4, FR-Session-1 bis FR-Session-4 | 4 |
 | DCH | Data Channel | UC-5, FR-DataChannel-1, FR-DataChannel-2, NFR-Sec-2 | 4 |
@@ -137,7 +137,7 @@ Die Story-Points und T-Shirt-Sizes in diesem Backlog sind als **klassische Solo-
 | STR | Stretch Goals | FR-Crypto-4, NFR-Sec-6, optionale Items | 3 |
 | SEC | Security Infrastructure (nachträglich aus PQC-19 Closing-Review) | NFR-Sec-3 (Web-Security-Baseline) | 5 |
 
-**Total Stories:** 68 (63 initial plus 5 SEC-Stories nachträglich aus Sprint-1-Reviews)
+**Total Stories:** 69 (63 initial plus 5 SEC-Stories nachträglich aus Sprint-1-Reviews plus 1 BRK-0 Story nachträglich beim Sprint-2-Planning)
 
 ---
 
@@ -147,7 +147,7 @@ Die Story-Points und T-Shirt-Sizes in diesem Backlog sind als **klassische Solo-
 |---|---|---|---|
 | Sprint 0 | 06.05 bis 24.05 | INF (Setup, Recherche, Dokumente) | INF-1, INF-2, INF-3, INF-4 |
 | Sprint 1 | 24.05 bis 31.05 | SKL + CRY + AUT + TOK + INF-Carry-Over + SEC-vorgezogen + QUA | SKL-1, SKL-2, CRY-1, CRY-2, CRY-5, AUT-1, AUT-2, AUT-3, AUT-4, TOK-1, TOK-2, QUA-1, QUA-2, QUA-3, INF-4 (Carry-Over), SEC-1, SEC-2, SEC-3, SEC-4, SEC-5 |
-| Sprint 2 | 01.06 bis 14.06 | BRK + TLS + Federation-Integration | BRK-1, BRK-2, BRK-3, BRK-4, BRK-5, BRK-6, BRK-7, TLS-1, TLS-2, TLS-3, APP-7, APP-8 |
+| Sprint 2 | 01.06 bis 14.06 | BRK + TLS + Federation-Integration | BRK-0 (Critical Path), BRK-1, BRK-2, BRK-3, BRK-4, BRK-5, BRK-6, BRK-7, TLS-1, TLS-2, TLS-3, APP-7, APP-8 |
 | Sprint 3 | 15.06 bis 28.06 | SES + DCH + Client-Crypto + Algorithmus-Demo | CRY-3, CRY-4, CRY-6, CRY-7, SES-1, SES-2, SES-3, SES-4, DCH-1, DCH-2, DCH-3, DCH-4, APP-2, APP-3, APP-5, APP-6, QUA-4, QUA-5 |
 | Sprint 4 | 29.06 bis 05.07 | DOC + Benchmarks + Polish | TOK-3, TOK-4, DOC-1, DOC-2, DOC-3, DOC-4, QUA-6, QUA-7, QUA-8 |
 | Stretch | nach Slack | STR | STR-1, STR-2, STR-3 |
@@ -570,6 +570,29 @@ Als Server möchte ich einen ausgestellten Broker-Token wieder verifizieren kön
 ### Epic BRK: Identity Broker / Federation
 
 **Ziel:** Login mit Google und Microsoft über OIDC Authorization Code Flow mit PKCE (UC-2, UC-3).
+
+#### BRK-0: OAuth-Apps bei Google und Microsoft registrieren (nachträglich beim Sprint-2-Planning)
+
+- **Epic:** BRK
+- **Jira-Key:** PQC-84
+- **Bezug:** UC-2, UC-3, FR-Broker-1, Risiko R-T04, R-S05
+- **Priorität:** Must
+- **T-Shirt:** S | **Story Points:** 2 | **Sprint:** 2 | **Blockt:** BRK-5, BRK-6
+
+**Story:**
+Als Server-Entwickler möchte ich, dass die OAuth-Client-Apps bei Google Cloud Console und Microsoft Entra ID registriert und konfiguriert sind, damit BRK-5 und BRK-6 ihre Client-IDs aus der Settings-Konfig laden können und der Federation-Flow überhaupt anlaufen kann.
+
+**Akzeptanzkriterien (Summary, voll in Jira PQC-84):**
+
+- AC-1: OAuth-2.0-Client in Google Cloud Console registriert mit Redirect-URI plus Scopes openid/email/profile.
+- AC-2: App-Registrierung in Microsoft Entra ID mit Tenant-Wahl dokumentiert, Redirect-URI plus delegated Permissions openid/email/profile.
+- AC-3: Client-ID/Secret in `.env.example` plus `config.yaml`, echte Werte ausserhalb Git.
+- AC-4: Live-Verifikation gegen Discovery-URLs plus Authorization-URL-Test im Browser.
+- AC-5: Reproduzierbarer Setup-Hinweis in `infra/README.md` oder `server/README.md`.
+
+**Hinweis:** Microsoft App-Approval kann mehrere Stunden bis Tage dauern, daher Story früh im Sprint einplanen. Adressiert R-T04 und R-S05 durch saubere Sequenzierung.
+
+---
 
 #### BRK-1: External-IdP-Registry mit Plugin-Architektur
 
@@ -1366,7 +1389,7 @@ Diese fünf Stories sind aus dem Senior-Closing-Review von PQC-19 (SKL-1) am 25.
 |---|---|---|---|---|
 | Sprint 0 | INF-1 bis INF-4 = 14 | --- | 14 | 14 (rückblickend, Sprint läuft aus) |
 | Sprint 1 | initial 41, faktisch 42 done | 0 | 42 done (inkl. 10 SP SEC vorgezogen) | ca. 13.5h tatsächlich, Multiplier 6.3x |
-| Sprint 2 | BRK + TLS + APP Federation = ca. 47 (SEC bereits in Sprint 1 done) | 0 | 47 | ca. 25 bis 30 |
+| Sprint 2 | BRK + TLS + APP Federation = 54, plus BRK-0 OAuth-Setup = 2 | 0 | 56 | ca. 25 bis 30 |
 | Sprint 3 | SES + DCH + APP Rest + CRY-3/4/6/7 = ca. 60 | SES-4 (3) | 63 | ca. 25 bis 30 |
 | Sprint 4 | DOC-1, DOC-2, DOC-3, QUA-6/7/8 = ca. 29 | TOK-3, TOK-4, DOC-4 (10) | 39 | ca. 12 bis 15 |
 | Stretch | --- | STR-1, STR-2, STR-3 = 18 | --- | --- |
@@ -1383,10 +1406,10 @@ Diese fünf Stories sind aus dem Senior-Closing-Review von PQC-19 (SKL-1) am 25.
 
 | Priorität | Anzahl Stories | Story Points (Summe) |
 |---|---|---|
-| Must | 58 | ca. 210 |
+| Must | 59 | ca. 212 |
 | Should | 7 | ca. 22 |
 | Could | 3 | 18 |
-| **Total** | **68** | **ca. 250** |
+| **Total** | **69** | **ca. 252** |
 
 Die hohe Must-Quote spiegelt die enge Verzahnung der Architektur-Komponenten wider. Wenn ein Must-Item gestrichen werden muss, ist es voraussichtlich aus dem App-Polish-Bereich (z.B. visuelles Layout, Profile-Screen-Detail).
 
@@ -1400,3 +1423,4 @@ Die hohe Must-Quote spiegelt die enge Verzahnung der Architektur-Komponenten wid
 | 1.1 | 27.05.2026 | Priorisierungs-Konvention erweitert (4-Achsen-Modell mit Built-in-Priority-Field, Sektion 1.3). Epic SEC nachträglich angelegt (PQC-78) mit 5 Stories SEC-1 bis SEC-5 (PQC-79 bis PQC-83), aus PQC-19 Senior-Closing-Review als Tier-1-Findings. Total jetzt 14 Epics mit 68 Stories. Sprint 2 SP-Last von 47 auf 57 erhöht. |
 | 1.2 | 31.05.2026 | Sprint-1-Closure: SEC-Bundle (PQC-79 bis PQC-83, 10 SP) wurde im Sprint 1 vorgezogen statt erst in Sprint 2 gemacht, weil SEC-Middlewares Voraussetzung für AUT-3 (Login-Endpoint) waren. INF-4 als Sprint-0-Carry-Over auch in Sprint 1 erledigt. Sprint 1 schliesst mit 17 Stories Done, 42 SP, aggregierter AI-Multiplier 6.3x. Sprint 2 entsprechend entlastet (47 SP statt 57 SP). |
 | 1.3 | 31.05.2026 abend | App-Bundle-Stretch in Sprint 1 erreicht: PQC-54 (APP-1 Login-Screen), PQC-57 (APP-4 AuthContext), PQC-62 (APP-9 Token-Persistenz). Sprint 1 ist damit 100% komplett (alle 41 SP Must plus 5 SP Stretch plus 10 SP SEC vorgezogen, total 47 SP Done in 20 Stories). Aggregierter AI-Multiplier final 6.4x. Carry-Over nach Sprint 2 = Null. |
+| 1.4 | 01.06.2026 | Beim Sprint-2-Planning Cross-Cutting-Concerns-Checkliste durchgegangen. Lücke: OAuth-App-Setup hatte keine eigene Story, BRK-5/6 setzten Client-IDs aus Env-Vars voraus. Neue Story BRK-0 (PQC-84, 2 SP S, Priority Highest) angelegt mit blocks BRK-5 und BRK-6. BRK-4 AC-6 ergänzt (email_verified-Check vor User-Linking). BRK-7 AC-5 ergänzt (Redis-State-Storage TTL 10min plus PKCE-code_verifier zusammen). Total jetzt 69 Stories, Sprint-2-SP-Last 56 (54 plus BRK-0). |

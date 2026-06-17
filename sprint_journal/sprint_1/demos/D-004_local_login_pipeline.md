@@ -27,18 +27,18 @@ funktional vollstaendig.
 ```bash
 # 0. Fresh user via Admin-CLI (PQC-29 AUT-2)
 echo "MySecretPw2026" | docker compose exec -T auth-service \
-    python -m admin create-user --email alice2026@test.com --password-stdin
+    python -m admin create-user --email alice2027@test.com --password-stdin
 
 # 1. Login mit korrekten Credentials (PQC-30 AUT-3) -> 200 OK + Broker-Token
 curl -s -X POST http://localhost:8080/auth/local/login \
     -H "Content-Type: application/json" \
     -H "X-Request-ID: aut3-demo-001" \
-    -d '{"email": "alice2026@test.com", "password": "MySecretPw2026"}'
+    -d '{"email": "alice2027@test.com", "password": "MySecretPw2026"}'
 
 # 2. Login mit falschem Passwort -> 401 invalid_credentials (PQC-31 AUT-4)
 curl -s -X POST http://localhost:8080/auth/local/login \
     -H "Content-Type: application/json" \
-    -d '{"email": "alice2026@test.com", "password": "wrong-password"}'
+    -d '{"email": "alice2027@test.com", "password": "wrong-password"}'
 
 # 3. Login mit unbekannter Email -> 401 identisch (PQC-31 AUT-4)
 curl -s -X POST http://localhost:8080/auth/local/login \

@@ -192,8 +192,9 @@ Zusätzlich zu den Labels wird das in Jira eingebaute Priority-Feld pro Story ge
 | SEC-3 | PQC-81 | SEC | 2 |
 | SEC-4 | PQC-82 | SEC | 2 |
 | SEC-5 | PQC-83 | SEC | 2 |
+| BRK-0 | PQC-84 | BRK | 2 |
 
-**Total:** 14 Epics, 68 Stories = 82 Issues. (Initial 13 Epics plus 63 Stories am 17.05; Epic SEC mit 5 Stories nachträglich am 25.05 aus PQC-19 Closing-Review.)
+**Total:** 14 Epics, 69 Stories = 83 Issues. (Initial 13 Epics plus 63 Stories am 17.05; Epic SEC mit 5 Stories nachträglich am 25.05 aus PQC-19 Closing-Review; BRK-0 nachträglich am 01.06 beim Sprint-2-Planning aus Cross-Cutting-Concerns-Checkliste.)
 
 ---
 
@@ -259,3 +260,4 @@ Im Free-Tier ist das Anlegen eigener Custom Fields eingeschränkt. Workaround: A
 |---|---|---|
 | 1.0 | 17.05.2026 | Initial-Version. Projekt-Übersicht, Label-Konvention, vollständige Mapping-Tabelle für 13 Epics und 63 Stories (PQC-2 bis PQC-77), nächste Setup-Schritte (Sprints, Releases, Board-Konfiguration, Mentor-Zugriff). |
 | 1.1 | 27.05.2026 | Sektion 2 umstrukturiert: vier Achsen der Priorisierung (MoSCoW, Sprint, Stretch, Built-in Priority Field) mit Mapping-Tabelle und MCP-Setz-Anleitung. Epic SEC (PQC-78) plus 5 Stories SEC-1 bis SEC-5 (PQC-79 bis PQC-83) ins Mapping aufgenommen, total jetzt 14 Epics und 68 Stories. |
+| 1.2 | 01.06.2026 | BRK-0 (PQC-84) ins Mapping aufgenommen. Story nachträglich beim Sprint-2-Planning angelegt für OAuth-App-Registrierung bei Google plus Microsoft. Total jetzt 14 Epics und 69 Stories. |
