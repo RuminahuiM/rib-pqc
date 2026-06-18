@@ -102,3 +102,45 @@ Keine offenen Must-/Should-Fixes.
 - **PQC-51 DCH-2 Header-basiertes Session-Routing:** Middleware liest
   `X-Session-Id`, ruft `SessionService.get`, mapped SessionNotFoundError
   auf 401 session_expired.
+
+---
+
+## Nachtrag 18.06.2026 (PQC-46 SES-1 API-Erweiterung, F-101)
+
+Bei der Implementation von PQC-46 SES-1 (POST /session/init) wurde
+festgestellt, dass die `SessionService.create()`-API der ursprueglichen
+PQC-48-Implementation nicht mit dem SES-2-HKDF-Flow harmoniert: SES-2
+braucht die session_id als HKDF-Salt VOR der Key-Ableitung, aber
+`create()` generiert die session_id intern, NACH dem Key-Aufruf.
+
+Loesung in PQC-46:
+- `SessionService.generate_session_id()` als oeffentlicher Static-Helper
+  ergaenzt (CSPRNG-16-Byte urlsafe-base64).
+- `SessionService.create_with_id(session_id, ...)` als alternativer
+  Persist-Path ergaenzt (Aufrufer hat session_id bereits, z.B. weil
+  als HKDF-Salt verwendet).
+- F-102 Refactor: gemeinsamer interner Helper `_persist_record()` der
+  von `create()` und `create_with_id()` aufgerufen wird, kein Code-
+  Duplikat mehr.
+
+Aufruf-Pattern (PQC-46 SES-1):
+
+```python
+session_id = session_service.generate_session_id()
+session_key = derive_session_key(
+    facade, shared_secret=ss, session_id=session_id, hkdf_info=info
+)
+await session_service.create_with_id(
+    session_id=session_id,
+    user_id=user_id,
+    kem_alg=kem_alg,
+    session_key=session_key,
+)
+```
+
+Backward-compatibility: bestehende `create()`-API unveraendert, die
+12 Sprint-3-Tests aus PQC-48 laufen weiter. SES-1 hinzugefuegt 12 weitere
+Tests in `tests/test_session_router.py`.
+
+Tracking: F-101 (Should) **resolved** durch diesen Nachtrag plus F-102
+(Should) **resolved** durch den `_persist_record`-Refactor.

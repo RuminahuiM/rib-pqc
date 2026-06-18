@@ -45,7 +45,7 @@ from middleware import (
     SecurityHeadersMiddleware,
     register_rate_limit,
 )
-from routers import auth, auth_federated, dev_test, health
+from routers import auth, auth_federated, dev_test, health, session
 from services.id_token_verifier import IdTokenVerifier
 from services.oidc_exchange_service import OidcExchangeService
 from services.oidc_jwks_service import OidcJwksService
@@ -375,6 +375,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     # PQC-37 (BRK-2)
     app.include_router(auth_federated.router)
+    app.include_router(session.router)
     # PQC-83 (SEC-5) AC-5: Dev-only Rate-Limit-Test-Endpoint
     if settings.environment == "dev":
         app.include_router(dev_test.router)

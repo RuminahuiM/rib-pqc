@@ -813,3 +813,36 @@ HKDF-Session-Key-Helper implementiert. `derive_session_key()` wrapped `facade.hk
 ### Historie-Update 18.06.2026 (PQC-47)
 
 Sprint-3 Story 5 von 18 Done. Session-Server-Block-Fortschritt (SES-3 + SES-2 Done, SES-1 + SES-4 ausstehend). 19 SP von 79 SP Done (24%).
+
+
+## Findings aus PQC-46 (SES-1) Closing-Review + Selbst-Audit am 18.06.2026
+
+POST /session/init implementiert: Pydantic-Request/Response, HTTPBearer-Dependency, FIPS-203-Length-Pre-Check, kem_encaps via Facade, derive_session_key, session_service.create_with_id. 12 fakeredis+mock-Tests. 246 passed, 5 skipped.
+
+Im Selbst-Audit nach User-Reminder zusaetzliche Schwachstellen entdeckt und ehrlich getrackt.
+
+### Tier-2 (Tracking, Polish/Refactor)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-099 | routers/session.py faengt RuntimeError + ValueError aus liboqs kem_encaps; bei zukuenftigen liboqs-Fehler-Klassen evtl. mehr abdecken. Aktuell sauber, Polish-Tracking. | Info | bei liboqs-Update oder Production-Load-Test | open |
+| F-100 | Sprint-3-Demo-Trigger erreicht (Token-Auth + KEM-Encaps + HKDF + SessionStore in einer Pipeline). Mini-Demo "End-to-End Session-Init" empfiehlt sich nach PQC-49 SES-4. | Info | nach SES-4 oder spaetestens nach DCH-3 | open |
+| F-101 | PQC-46 hat SessionService um `generate_session_id` und `create_with_id` retroactive erweitert (PQC-48 ist Done seit ffece29). API-Aenderung an einer Done-Story ohne explizites Story-Update. Sauberer: PQC-48 Evidence + Done-Comment mit Update-Hinweis annotieren oder dedizierte Refactor-Story. | Should | vor Bericht-Abgabe in PQC-48-Evidence-File einen Nachtrag ergaenzen | open |
+| F-102 | SessionService hat zwei nah-identische Methoden `create` und `create_with_id` mit ueberlappender Persistenz-Logik. Code-Smell. Refactor zu internem `_create_record(session_id, ...)` + zwei Wrappern. | Should | bei DCH-3 Touch oder Sprint-4-Polish | open |
+| F-103 | routers/session.py-Tests nutzen Mock-TokenService. Integration-Test mit echtem Sprint-1-TokenService (signiert + verifiziert echten Broker-Token) fehlt. liboqs-Skip-Pattern macht das fakeredis-Tests-only. | May | Sprint-4-Polish | open |
+| F-104 | SessionService.create_with_id ueberschreibt existierende session_id ohne Pruefung (Redis SET, nicht SET NX). Bei 128-bit-CSPRNG astronomisch unwahrscheinlich (Birthday: 2^64 Sessions parallel noetig), aber defensive Programmierung waere SET NX + Retry-on-Collision. | May | Sprint-4-Polish oder vor Production-Load | open |
+
+### Historie-Update 18.06.2026 (PQC-46)
+
+Sprint-3 Story 6 von 18 Done. SES-1 ist erster End-to-End-Pipeline-Endpoint. 27 SP von 79 SP Done (34%). Selbst-Audit hat 4 zusaetzliche Findings (F-101 bis F-104) aufgedeckt die ohne User-Hinweis untergegangen waeren.
+
+### Nachtrag PQC-46 Closing-Review-Fixes (in Story aufgeloest, 18.06.2026)
+
+User-Reminder zur Workflow-Disziplin hat zur Fix-in-Story der zwei Should-Findings gefuehrt:
+
+| ID | Resolution |
+|---|---|
+| F-101 | **resolved** durch Nachtrag-Sektion in `sprint_journal/sprint_3/evidence/PQC-48_SES-3_session_store_redis.md` (API-Erweiterung in PQC-46 dokumentiert mit Aufruf-Pattern + Backward-Compatibility-Note) |
+| F-102 | **resolved** durch Refactor in `services/session_service.py`: gemeinsamer interner `_persist_record()`-Helper, `create()` und `create_with_id()` sind jetzt duenne Wrapper ohne Code-Duplikat. Alle 24 Session-bezogenen Tests weiter gruen. |
+
+Sprint-3 Story 6 (PQC-46 SES-1) damit Should-Findings-frei.

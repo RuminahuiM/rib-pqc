@@ -163,6 +163,51 @@ class SessionService:
     def ttl_seconds(self) -> int:
         return self._ttl_seconds
 
+    @staticmethod
+    def generate_session_id() -> str:
+        """Erzeugt eine frische CSPRNG-session_id (urlsafe-base64, 22 chars).
+
+        Story-Bezug: PQC-46 SES-1. SES-1 braucht die session_id vor dem
+        SessionService.create-Aufruf, weil sie als HKDF-Salt fuer die
+        Session-Key-Ableitung verwendet wird (PQC-47 SES-2 Konvention).
+        """
+        return _b64url_encode_no_pad(secrets.token_bytes(_SESSION_ID_BYTES))
+
+    async def _persist_record(
+        self,
+        *,
+        session_id: str,
+        user_id: str,
+        kem_alg: str,
+        session_key: bytes,
+    ) -> SessionRecord:
+        """Interner Helper: baut SessionRecord, persistiert in Redis mit TTL.
+
+        Story-Bezug: PQC-48 SES-3 + PQC-46 SES-1 + F-102 Refactor.
+        Gemeinsame Implementation fuer ``create`` und ``create_with_id``.
+        """
+        now = int(time.time())
+        record = SessionRecord(
+            user_id=user_id,
+            kem_alg=kem_alg,
+            session_key=session_key,
+            created_at=now,
+            expires_at=now + self._ttl_seconds,
+        )
+        await self._redis.set(
+            _session_key_redis(session_id),
+            self._serialize(record),
+            ex=self._ttl_seconds,
+        )
+        logger.info(
+            "session.persisted session_id_prefix=%s user_id=%s kem_alg=%s ttl=%d",
+            session_id[:8],
+            user_id,
+            kem_alg,
+            self._ttl_seconds,
+        )
+        return record
+
     async def create(
         self,
         *,
@@ -180,28 +225,39 @@ class SessionService:
         Returns:
             Tuple aus session_id (urlsafe-base64, 22 chars) und Pydantic-Record.
         """
-        session_id = _b64url_encode_no_pad(secrets.token_bytes(_SESSION_ID_BYTES))
-        now = int(time.time())
-        record = SessionRecord(
+        session_id = self.generate_session_id()
+        record = await self._persist_record(
+            session_id=session_id,
             user_id=user_id,
             kem_alg=kem_alg,
             session_key=session_key,
-            created_at=now,
-            expires_at=now + self._ttl_seconds,
-        )
-        await self._redis.set(
-            _session_key_redis(session_id),
-            self._serialize(record),
-            ex=self._ttl_seconds,
-        )
-        logger.info(
-            "session.created session_id_prefix=%s user_id=%s kem_alg=%s ttl=%d",
-            session_id[:8],
-            user_id,
-            kem_alg,
-            self._ttl_seconds,
         )
         return session_id, record
+
+    async def create_with_id(
+        self,
+        *,
+        session_id: str,
+        user_id: str,
+        kem_alg: str,
+        session_key: bytes,
+    ) -> SessionRecord:
+        """Persistiert einen Session-Record mit pre-generated session_id.
+
+        Story-Bezug: PQC-46 SES-1 (API-Erweiterung von PQC-48 SES-3, siehe
+        F-101). Aufrufer hat bereits eine session_id mit ``generate_session_id()``
+        erzeugt (z.B. weil sie als HKDF-Salt fuer den session_key benoetigt
+        wurde) und uebergibt sie hier.
+
+        Returns:
+            SessionRecord mit created_at/expires_at gesetzt.
+        """
+        return await self._persist_record(
+            session_id=session_id,
+            user_id=user_id,
+            kem_alg=kem_alg,
+            session_key=session_key,
+        )
 
     async def get(self, session_id: str) -> SessionRecord:
         """Lookup ohne TTL-Refresh.
