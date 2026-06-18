@@ -132,18 +132,19 @@ Request mit einem unterstuetzten Algorithmus wiederholen.
   "user_id": "<broker-token sub>",
   "kem_alg": "ML-KEM-768",
   "session_key": "<base64url(HKDF-output, 32 byte)>",
-  "created_at": "2026-06-18T20:00:00Z",
-  "auth_method": "local|federated-google|federated-microsoft"
+  "created_at": 1718700000,
+  "expires_at": 1718700900
 }
 ```
 
-- `user_id`: aus dem verifizierten Broker-Token.
+- `user_id`: aus dem verifizierten Broker-Token sub-Claim.
 - `kem_alg`: zur Selbst-Deklaration. Algorithmus-Wechsel ueber neue
   Session-Init, alte Session bleibt unveraendert bis TTL Expiry.
 - `session_key`: HKDF-SHA256-Output aus `facade.hkdf(ikm=shared_secret,
   info=b"app-session-v1", salt=session_id)`. 32 Byte (AES-256-GCM-Key).
-  **Niemals in Logs.**
-- `created_at`: ISO 8601 UTC, fuer Debug-Forensik.
+  In Redis als base64url-no-pad gespeichert. **Niemals in Logs.**
+- `created_at`: unix-Sekunden int, fuer Debug-Forensik.
+- `expires_at`: unix-Sekunden int = created_at + ttl_seconds.
 
 ---
 
@@ -226,3 +227,4 @@ Sprint-3-Defaults: `ML-DSA-65` (Signatur), `ML-KEM-768` (KEM), `HKDF-SHA256`
 | Version | Datum | Aenderung |
 | --- | --- | --- |
 | 0.1 | 18.06.2026 | Initial fuer PQC-27 CRY-7. Token-Header, Session-Init, Session-Record, Encrypted-Channel-Wire-Format. |
+| 0.2 | 18.06.2026 | PQC-48 SES-3: Session-Record-Felder auf Design 5.2 + Implementation aligniert (expires_at statt auth_method, unix-ts statt ISO-created_at). F-095 closed durch SessionConfig in config.py. |

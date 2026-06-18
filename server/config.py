@@ -113,9 +113,7 @@ class CorsConfig(BaseModel):
             "http://localhost:8080",
         ]
     )
-    allowed_methods: list[str] = Field(
-        default_factory=lambda: ["GET", "POST", "OPTIONS"]
-    )
+    allowed_methods: list[str] = Field(default_factory=lambda: ["GET", "POST", "OPTIONS"])
     allowed_headers: list[str] = Field(
         default_factory=lambda: ["Authorization", "Content-Type", "X-Request-ID"]
     )
@@ -173,6 +171,22 @@ class SecurityConfig(BaseModel):
     )
     headers: SecurityHeadersConfig = Field(default_factory=SecurityHeadersConfig)
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
+
+
+class SessionConfig(BaseModel):
+    """PQ-Session-Konfiguration (Stories PQC-48 SES-3, PQC-46 SES-1).
+
+    - ``ttl_seconds``: TTL fuer Session-Record im Redis. Design 5.2 Default 900.
+      Untergrenze 60 (Test-Friendly), Obergrenze 86400 (24h, Best-Practice).
+    - ``session_redis_db``: Separate Redis-DB-Nummer fuer den Session-Store
+      (Default 3), getrennt von Rate-Limit (1), OIDC-State (2) und Allgemein (0).
+    - ``hkdf_info``: Domain-Separation-Bytes fuer HKDF-Session-Key-Ableitung
+      (PQC-47 SES-2). Default ``b"app-session-v1"``.
+    """
+
+    ttl_seconds: int = Field(default=900, ge=60, le=86400)
+    session_redis_db: int = Field(default=3, ge=0, le=15)
+    hkdf_info: bytes = Field(default=b"app-session-v1")
 
 
 class OidcConfig(BaseModel):
@@ -305,6 +319,7 @@ class Settings(BaseSettings):
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     idp_providers: IdpProvidersConfig = Field(default_factory=IdpProvidersConfig)
     oidc: OidcConfig = Field(default_factory=OidcConfig)
+    session: SessionConfig = Field(default_factory=SessionConfig)
 
     @classmethod
     def settings_customise_sources(  # type: ignore[override]

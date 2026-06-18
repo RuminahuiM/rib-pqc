@@ -50,6 +50,7 @@ from services.id_token_verifier import IdTokenVerifier
 from services.oidc_exchange_service import OidcExchangeService
 from services.oidc_jwks_service import OidcJwksService
 from services.oidc_state_service import OidcStateService
+from services.session_service import SessionService
 from services.token_service import TokenService
 
 if TYPE_CHECKING:
@@ -241,8 +242,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     # PQC-37 (BRK-2): Redis-Client + OIDC State + Exchange Services.
-    import redis.asyncio as redis_async  # noqa: PLC0415
-    import httpx  # noqa: PLC0415
+    import httpx
+    import redis.asyncio as redis_async
+
     redis_base = settings.redis_url.rsplit("/", 1)[0]
     state_redis_url = f"{redis_base}/{settings.oidc.state_redis_db}"
     oidc_redis = redis_async.from_url(state_redis_url, decode_responses=False)
@@ -274,6 +276,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         id_token_exp_leeway_seconds=settings.oidc.id_token_exp_leeway_seconds,
     )
 
+    # PQC-48 SES-3: PQ-Session-Store mit eigener Redis-DB (Default db=3).
+    session_redis_url = f"{redis_base}/{settings.session.session_redis_db}"
+    session_redis = redis_async.from_url(session_redis_url, decode_responses=False)
+    session_service = SessionService(
+        redis_client=session_redis,
+        ttl_seconds=settings.session.ttl_seconds,
+    )
+    logger.info(
+        "session.service.initialized",
+        session_redis_url=session_redis_url,
+        ttl_seconds=settings.session.ttl_seconds,
+    )
+
     # State im App-Lifecycle ablegen.
     app.state.settings = settings
     app.state.crypto_registry = registry
@@ -289,6 +304,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.oidc_exchange_service = oidc_exchange_service
     app.state.oidc_jwks_service = oidc_jwks_service
     app.state.id_token_verifier = id_token_verifier
+    app.state.session_service = session_service
     try:
         yield
     finally:
@@ -363,7 +379,6 @@ def create_app() -> FastAPI:
     if settings.environment == "dev":
         app.include_router(dev_test.router)
     return app
-
 
 
 app = create_app()

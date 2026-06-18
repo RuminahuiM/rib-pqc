@@ -765,3 +765,30 @@ Bei tiefem Review festgestellt: `docs/wire_format.md` referenziert `settings.ses
 | ID | Titel | Severity | Trigger | Status |
 |---|---|---|---|---|
 | F-095 | wire_format.md verweist auf `settings.session.ttl_seconds` (Default 900), Feld muss in PQC-48 SES-3 in `config.py` als `SessionConfig.ttl_seconds` ergaenzt werden. Doku-Markup auf "zu ergaenzendes Config-Feld in PQC-48 SES-3" geupdated. | Info | bei PQC-48 SES-3 Story-Start umsetzen | open |
+
+
+## Findings aus PQC-48 (SES-3) Closing-Review am 18.06.2026
+
+Session-Store mit Redis implementiert. SessionService analog OidcStateService-Pattern, SessionConfig, 12 fakeredis-Tests, docs/wire_format.md Sec 4 aligned. 227 passed, 5 skipped.
+
+### Resolved durch PQC-48
+
+| ID | Titel | Resolution |
+|---|---|---|
+| F-095 | SessionConfig.ttl_seconds in config.py | **resolved** durch SessionConfig (ttl_seconds Default 900, session_redis_db Default 3, hkdf_info b"app-session-v1") |
+
+### Resolved durch separates Hotfix-Commit (im Closing-Review-Tiefer-Pass aufgedeckt)
+
+| ID | Titel | Severity | Resolution |
+|---|---|---|---|
+| F-096 | registry.py + registry_init.py wurden in PQC-24 silently truncated durch Edit/Write-Tool, Tests broken seit Commit ae80de3, im PQC-24-Closing-Review uebersehen weil nur Story-Tests statt volle Suite gefahren. Lesson: nach jedem Edit/Write volle Suite. | Should | **resolved** durch Hotfix-Commit 5365f1a |
+
+### Tier-2 (in Story gefixt, Tracking-Eintrag fuer Historie)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-097 | wire_format.md Sec 4 war out-of-sync mit Design 5.2 und der Implementation. Im tiefen PQC-48-Closing-Review entdeckt. | Must | in Story gefixt | **resolved** in PQC-48 (Doku-Version 0.2) |
+
+### Historie-Update 18.06.2026 (PQC-48)
+
+Sprint-3 Story 4 von 18 Done. SessionService bereit fuer SES-2 (HKDF) und SES-1 (Session-Init). 17 SP von 79 SP Done (21.5%).
