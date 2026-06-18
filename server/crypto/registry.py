@@ -167,4 +167,4 @@ class CryptoRegistry:
 
     def supported_signature(self) -> list[str]:
         """Liefert die Namen aller registrierten Signatur-Algorithmen, sortiert."""
-        return sorte
+        return sorted(self._signature)

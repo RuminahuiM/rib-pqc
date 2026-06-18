@@ -141,4 +141,5 @@ def init_crypto_registry(
                 f"Unsupported signature algorithm '{alg}' in crypto.signature.supported. "
                 f"Sprint-1-Whitelist: {sorted(_SUPPORTED_SIGNATURE_ALGORITHMS)}"
             )
-       
+            raise UnsupportedAlgorithmError(msg)
+        registry.register_signature(alg, LibOqsSignature(alg))
