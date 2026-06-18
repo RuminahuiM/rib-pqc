@@ -72,7 +72,9 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 | R-P03 | Krankheit oder unerwartete Ausfälle | Persönlich | Niedrig | Hoch | 3 | Monitor |
 | R-E01 | NIST-Standard-Updates während Projekt | Extern | Sehr niedrig | Niedrig | 1 | Accepted |
 | R-N01 | Expo SDK Version nicht in App Store Expo-Go-App verfügbar | Node/JS-Ökosystem | Hoch | Niedrig | 3 | Mitigated (30.05) |
-| R-T07 | Expo Deep-Link für OAuth-Callback im Expo Go nicht zuverlässig | Technisch | Mittel | Mittel | 4 | Active (Sprint 2) |
+| R-T07 | Expo Deep-Link für OAuth-Callback im Expo Go nicht zuverlässig | Technisch | Mittel | Mittel | 4 | Mitigated (17.06) |
+| R-S06 | Sprint-3-Komprimierung wegen Sprint-2-Verzögerung | Termin | Mittel | Hoch | 6 | Active |
+| R-T08 | Mobile-Client kann PQC-TLS nicht End-to-End nutzen (System-TLS-Stack ohne X25519MLKEM768) | Technisch | Eingetreten | Mittel | --- | Identifiziert (17.06) |
 
 ---
 
@@ -195,6 +197,27 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 
 **Contingency:** Fallback auf manuellen Code-Copy-Flow für die Demo: User kopiert den OAuth-Callback-Code aus dem Browser-Tab in einen Input-Feld in der App. Nicht produktiv, aber demonstrierbar. Im Bericht als Limitation erwähnen, Production-Path braucht Custom-Build via EAS.
 
+**Status-Update 17.06.2026:** Mitigated. Deep-Link funktional verifiziert via expo-auth-session plus Custom-Scheme. Browser-Test war erfolgreich.
+
+---
+
+### R-T08: Mobile-Client kann PQC-TLS nicht End-to-End nutzen
+
+**Beschreibung:** Der Mobile-Client (React Native via Expo Go) nutzt für HTTP-Calls den System-TLS-Stack des Betriebssystems (Apple Network Framework auf iOS, Conscrypt/BoringSSL auf Android). Diese System-TLS-Stacks unterstützen die hybride Key-Exchange-Group X25519MLKEM768 nicht, weil ML-KEM-768 noch nicht in den OS-TLS-Libraries ausgerollt ist (Stand Juni 2026). Auf der Server-Seite ist X25519MLKEM768 über nginx mit oqs-provider aktiv (PQC-18, PQC-43), und Browser wie Chrome/Edge können sich verbinden weil sie ihren eigenen TLS-Stack mit Kyber/ML-KEM-Support mitbringen. Mobile-Apps können das nicht.
+
+**Probability:** Eingetreten (während Sprint-2-Day-Marathon entdeckt) | **Impact:** Mittel (Mobile-PQC-TLS-Path bleibt theoretisch, Browser-Path funktioniert real) | **Score:** ---
+
+**Konsequenz:** Die Mobile-Federation-Flows (APP-7, APP-8) wurden während Sprint 2 nur über den Browser verifiziert, nicht aus der Expo-Go-App selbst gegen das echte HTTPS-Backend. Die App kann zwar OAuth-Authorization-Flows starten (das macht intern Safari View Controller / Chrome Custom Tab, also Browser-TLS), aber nachfolgende HTTP-Calls vom App-JavaScript an den Backend-Endpoint können den PQC-TLS-Handshake nicht abschliessen.
+
+**Mitigation:**
+- Dokumentation als Projekt-Limitation im Schlussbericht. Production-Path würde Custom-Native-Module mit eigener TLS-Lib (z.B. liboqs-bindings für React Native) erfordern.
+- Demo-Strategie: Backend-PQC-TLS via openssl/oqs-curl/Chrome demonstrieren (siehe D-005 plus D-007), Mobile-Flows zusätzlich gegen das Backend via Browser-zu-Server-Pfad.
+- Für den Bericht: das ist ein ehrlicher Befund aus Sprint 2 und kein Implementierungs-Fehler, sondern eine OS-Plattform-Limitation.
+
+**Contingency:** Falls für die Schluss-Präsentation eine vollständige End-to-End-Mobile-PQC-TLS-Demo nötig wäre, müsste ein Custom-Build (EAS Build mit Native-Modul) gebaut werden. Aufwand mehrere Tage, nicht im Sprint-Plan vorgesehen. Im Bericht als künftige Arbeit markieren.
+
+**Status-Update 17.06.2026:** Identifiziert während Sprint-2-Day-Marathon. Mobile-Stories APP-7/APP-8 sind funktional (UI plus Auth-Flow), aber der Backend-Call läuft via klassischer HTTPS-Group (X25519 oder secp256r1), nicht via X25519MLKEM768. Sprint-Goal-Erfüllung im engen Sinn nur "theoretisch" für den Mobile-Pfad.
+
 ---
 
 ## 4. Termin- und Kapazitäts-Risiken
@@ -279,6 +302,25 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 - Google-Cloud-Console und Microsoft-Entra-Portal bereits konfiguriert haben, bevor BRK-2 anläuft.
 
 **Contingency:** Mock-IdP-Server (z.B. via pytest-httpserver) für Tests in Sprint 2, echte Provider erst später integrieren.
+
+---
+
+### R-S06: Sprint-3-Komprimierung wegen Sprint-2-Verzögerung
+
+**Beschreibung:** Sprint 2 wurde wegen externem Arbeit-Problem (HEKS) während des geplanten Zeitraums (01.06 bis 14.06) nicht implementiert und am 17.06 als Day-Marathon nachgeholt. Damit ist die Restzeit bis zur Projekt-Abgabe (04 bis 05.07.2026) knapper geworden. Sprint 3 muss in ca. 11 Tagen abgeschlossen werden (statt geplant 14), damit Sprint 4 (Doku-Fokus) seine vollen 7 Tage behält.
+
+**Probability:** Mittel | **Impact:** Hoch (Risiko dass Sprint-3-Stories nicht vollständig fertig werden oder in Sprint 4 rutschen, was die Doku-Zeit weiter komprimieren würde) | **Score:** 6
+
+**Konsequenz bei Eintritt:** Sprint 3 muss Scope reduziert werden, einzelne Should-Items (SES-4 Algorithmus-Negotiation, APP-Stories) ggf. streichen oder ins Stretch verschieben.
+
+**Mitigation:**
+- **Sprint 4 ist unantastbar.** Sprint 3 endet wie ursprünglich geplant am 28.06.2026, weil Sprint 4 (Doku, Bericht, Präsentation) Priorität hat und seine vollen 7 Tage braucht.
+- AI-Multiplier aus Sprint 1 (6.4x) und Sprint 2 (13.6x Day-Marathon) gibt Hoffnung dass Sprint 3 trotz Komprimierung schaffbar ist, eventuell sogar vor dem 28.06 fertig.
+- Falls am Halbzeit-Check Sprint 3 nicht im Plan ist: aggressiv Scope-Cut in Reihenfolge SES-4 → APP-5/6 → optionale Polish-Items.
+
+**Contingency:** Falls Sprint 3 nicht bis 28.06 fertig wird, harte Priorisierung: SES-1 bis SES-3 (Sprint-Goal-relevant) plus DCH-Bundle gehen vor APP-Stories und QUA-Polish.
+
+**Status-Update 18.06.2026:** Active. Wird beim Sprint-3-Planning (heute) als Constraint berücksichtigt.
 
 ---
 
