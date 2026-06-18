@@ -742,3 +742,26 @@ Crypto-Facade um KEM (LibOqsKem-Pass-Through), HKDF-SHA256 und AES-256-GCM-AEAD 
 ### Historie-Update 18.06.2026 (PQC-23)
 
 Sprint-3 Story 2 von 18 Done. Crypto-Facade-Schicht komplett (Signature + KEM + HKDF + AEAD + Negotiation). Foundation fuer SES-1/2/3 + DCH-1/2/3/4 steht.
+
+
+## Findings aus PQC-27 (CRY-7) Closing-Review am 18.06.2026
+
+Doku-Story: docs/wire_format.md (228 Zeilen, 7 Sektionen) als zentrale Spec fuer alle Krypto-Artefakte angelegt. AC-1 (Token-Header alg+kid) bereits seit Sprint 1 PQC-32 erfuellt. AC-2/AC-3 (Session-Record und Wire-Format kem_alg) als Schema-Spec festgeschrieben, Code-Enforcement kommt in PQC-46 SES-1 und PQC-48 SES-3.
+
+### Tier-2 (Polish/Tracking)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-094 | docs/wire_format.md Sec 5.3 (Encrypted-Channel Response-Body) ist als TBD-in-SES-3 markiert. Konkrete Konvention (gleicher Header oder X-Response-Nonce) wird in PQC-52 DCH-3 finalisiert. | Info | bei PQC-52 DCH-3 die Sec 5.3 final updaten | open |
+
+### Historie-Update 18.06.2026 (PQC-27)
+
+Sprint-3 Story 3 von 18 Done. Wire-Format-Spec steht. Crypto-Foundation-Block 1 (CRY-4 + CRY-3 + CRY-7) komplett, 12 SP done. Next: Session-Server-Layer (SES-3 + SES-2 + SES-1).
+
+## Nachtrag PQC-27 Closing-Review (Tiefer-Pass)
+
+Bei tiefem Review festgestellt: `docs/wire_format.md` referenziert `settings.session.ttl_seconds`, dieses Config-Feld existiert noch nicht in `server/config.py`. Spec-Story darf Forward-References machen, aber wir tracken explizit damit SES-3 das Feld tatsaechlich anlegt.
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-095 | wire_format.md verweist auf `settings.session.ttl_seconds` (Default 900), Feld muss in PQC-48 SES-3 in `config.py` als `SessionConfig.ttl_seconds` ergaenzt werden. Doku-Markup auf "zu ergaenzendes Config-Feld in PQC-48 SES-3" geupdated. | Info | bei PQC-48 SES-3 Story-Start umsetzen | open |
