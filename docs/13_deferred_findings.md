@@ -792,3 +792,24 @@ Session-Store mit Redis implementiert. SessionService analog OidcStateService-Pa
 ### Historie-Update 18.06.2026 (PQC-48)
 
 Sprint-3 Story 4 von 18 Done. SessionService bereit fuer SES-2 (HKDF) und SES-1 (Session-Init). 17 SP von 79 SP Done (21.5%).
+
+
+## Findings aus PQC-47 (SES-2) Closing-Review am 18.06.2026
+
+HKDF-Session-Key-Helper implementiert. `derive_session_key()` wrapped `facade.hkdf` mit SES-2-Konvention (info aus SessionConfig.hkdf_info, salt=session_id.encode("ascii"), length=32). 7 Tests. 234 passed.
+
+### Resolved durch PQC-47
+
+| ID | Titel | Resolution |
+|---|---|---|
+| F-091 | HKDF-Aufrufkonvention (info=b"app-session-v1", salt=session_id) in SES-2 dokumentieren | **resolved** durch Modul-Docstring `services/session_key_derivation.py` + Code + 7 Tests |
+
+### Tier-2 (neu, fuer Folgestory)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-098 | Bei PQC-26 CRY-6 Cross-Validation-Test ergaenzen, der den deterministischen Test-Vektor aus `test_session_key_derivation.py` (bytes(range(32)), "test-session-id-22ch", b"app-session-v1") app-seitig (TypeScript via @noble/hashes) reproduziert. Sichert Byte-Identitaet zwischen Python-Server und TS-App. | Info | bei PQC-26 CRY-6 Story-Start | open |
+
+### Historie-Update 18.06.2026 (PQC-47)
+
+Sprint-3 Story 5 von 18 Done. Session-Server-Block-Fortschritt (SES-3 + SES-2 Done, SES-1 + SES-4 ausstehend). 19 SP von 79 SP Done (24%).
