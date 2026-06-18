@@ -725,3 +725,20 @@ LibOqsKem-Adapter fuer ML-KEM-768 + ML-KEM-1024 implementiert. Stateless per-Cal
 ### Historie-Update 18.06.2026 (PQC-24)
 
 Sprint-3 Start: erste Story Done. Crypto-Foundation-KEM-Adapter steht. Nebenbei mitgenommen: Doc-Fix in crypto/registry.py (KemPlugin-Beispiel war falsch auf PQC-25 verwiesen statt PQC-24).
+
+
+## Findings aus PQC-23 (CRY-3) Closing-Review am 18.06.2026
+
+Crypto-Facade um KEM (LibOqsKem-Pass-Through), HKDF-SHA256 und AES-256-GCM-AEAD erweitert. Plus Negotiation-Support (supported_kem_algorithms, is_kem_supported). Neue AeadDecryptError-Klasse als sauberer Wrapper um cryptography.exceptions.InvalidTag. 30 Tests in test_facade.py (8 alte + 22 neue CRY-3 + 1 Integration-Pipeline). 215 passed, 5 skipped, keine Regressions.
+
+### Tier-2 (Polish/Tracking)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-091 | HKDF-Aufrufkonvention (info=b"app-session-v1", salt=session_id) wird in SES-2 (PQC-47) festgelegt, nicht hardcoded in facade.hkdf(). Vorteil: HKDF bleibt fuer andere Use-Cases nutzbar. Konvention muss in SES-2 Doku stehen. | Info | bei PQC-47 SES-2 Story-Start sicherstellen | open |
+| F-092 | facade.aead_encrypt prueft nonce-Laenge nicht selbst, cryptography.hazmat AESGCM wirft ValueError bei wrong-size. NIST SP 800-38D Section 8.2 fordert nonce-Eindeutigkeit pro Key. Aufrufer (DCH-1/DCH-2) muss 12-Byte-CSPRNG-Nonce per Request streng durchsetzen. Replay-Tracking ist DCH-4. | Info | bei PQC-50 DCH-1 + PQC-51 DCH-2 streng implementieren | open |
+| F-093 | Edit-Tool und Write-Tool haben facade.py + test_facade.py waehrend PQC-23 zweimal mitten im Schreiben truncated. Fix per bash-heredoc-Rewrite. Nicht code-relevant, Tooling-Workaround dokumentiert. | Info | bei wieder auftretendem Vorfall heredoc als Default-Strategie | open |
+
+### Historie-Update 18.06.2026 (PQC-23)
+
+Sprint-3 Story 2 von 18 Done. Crypto-Facade-Schicht komplett (Signature + KEM + HKDF + AEAD + Negotiation). Foundation fuer SES-1/2/3 + DCH-1/2/3/4 steht.
