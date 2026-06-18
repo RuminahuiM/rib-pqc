@@ -846,3 +846,18 @@ User-Reminder zur Workflow-Disziplin hat zur Fix-in-Story der zwei Should-Findin
 | F-102 | **resolved** durch Refactor in `services/session_service.py`: gemeinsamer interner `_persist_record()`-Helper, `create()` und `create_with_id()` sind jetzt duenne Wrapper ohne Code-Duplikat. Alle 24 Session-bezogenen Tests weiter gruen. |
 
 Sprint-3 Story 6 (PQC-46 SES-1) damit Should-Findings-frei.
+
+
+## Findings aus PQC-49 (SES-4) Closing-Review am 18.06.2026
+
+Algorithmus-Negotiation: 2 dezidierte Tests in test_session_router.py (Mismatch-Scenario + Retry-Roundtrip). Server-Logik schon in PQC-46 implementiert, hier nur Test-Coverage + Doku + WebSearch-basierte Stretch-Note.
+
+### Tier-2 (Polish/Tracking)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-105 | HTTP 406 Not Acceptable ist strikt fuer Accept-Header-Negotiation gedacht (RFC 7231 Sec 6.5.6). Unser Use-Case ist Body-Payload-kem_alg-Negotiation. Semantischer Stretch akzeptiert weil Story-Spec + wire_format.md Sec 3.3 explizit 406 fordern. RFC-7231-konformer waere 422 Unprocessable Entity oder OAuth-style 400 mit error-Code. Bewusst Spec-konform gehalten, sollte im Schluss-Bericht als Lessons-Learned-Story dokumentiert werden. | Info | im Bericht erwaehnen, kein Code-Change | open |
+
+### Historie-Update 18.06.2026 (PQC-49)
+
+Sprint-3 Story 7 von 18 Done. Session-Server-Block (SES-1 + SES-2 + SES-3 + SES-4) faktisch komplett. **30 SP von 79 SP Done (38%).** Mini-Demo-Trigger erreicht, empfohlen vor DCH-1.

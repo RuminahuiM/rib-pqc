@@ -351,3 +351,89 @@ async def test_session_init_missing_body_field_returns_422(client_ok: AsyncClien
         json={"kem_alg": "ML-KEM-768"},  # encapsulation_key fehlt
     )
     assert resp.status_code == 422
+
+
+# --- PQC-49 SES-4: Dezidierte Algorithmus-Negotiation-Tests --------------------
+
+
+@pytest.mark.asyncio
+async def test_ses4_mismatch_response_includes_supported_algorithms_list(
+    session_service: SessionService,
+) -> None:
+    """SES-4 AC-1 + AC-3: Server muss bei nicht-unterstuetztem kem_alg eine
+    406-Response mit der vollstaendigen supported_algorithms-Liste liefern,
+    damit der Client einen Retry-Algorithmus waehlen kann.
+
+    Mismatch-Scenario explizit konfiguriert: Server unterstuetzt nur
+    ML-KEM-768, Client fragt Kyber768 (Pre-Standard) an.
+    """
+    facade = _MockFacade(supported=["ML-KEM-768"])  # nur eine Variante
+    app = _build_app(
+        facade=facade,
+        session_service=session_service,
+        token_service=_MockTokenServiceOK(),
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.post(
+            "/session/init",
+            headers={"Authorization": "Bearer dummy"},
+            json={
+                "kem_alg": "Kyber768",  # Pre-Standard-Name, nicht in Whitelist
+                "encapsulation_key": _valid_pk_b64("ML-KEM-768"),
+            },
+        )
+
+    assert resp.status_code == 406
+    detail = resp.json()["detail"]
+    assert detail["error"] == "kem_alg_not_supported"
+    assert detail["requested"] == "Kyber768"
+    # supported_algorithms muss vollstaendig sein, nicht nur teilweise
+    assert detail["supported_algorithms"] == ["ML-KEM-768"]
+
+
+@pytest.mark.asyncio
+async def test_ses4_client_retry_after_406_succeeds(
+    session_service: SessionService,
+) -> None:
+    """SES-4 AC-2 (Server-Side): Wenn der Client den 406-Response liest und
+    mit einem unterstuetzten Algorithmus retried, muss der Server die Session
+    erfolgreich initialisieren.
+
+    Simulation des Client-Retry-Patterns: zwei aufeinanderfolgende Requests,
+    erst mit nicht-unterstuetztem alg (406), dann mit unterstuetztem (200).
+    App-seitiger Retry-Code ist Sache von PQC-26 CRY-6 (F-098, F-103).
+    """
+    facade = _MockFacade(supported=["ML-KEM-768"])
+    app = _build_app(
+        facade=facade,
+        session_service=session_service,
+        token_service=_MockTokenServiceOK(),
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        # Erster Request: Mismatch -> 406
+        resp_mismatch = await ac.post(
+            "/session/init",
+            headers={"Authorization": "Bearer dummy"},
+            json={
+                "kem_alg": "ML-KEM-1024",  # Server unterstuetzt nur ML-KEM-768
+                "encapsulation_key": _valid_pk_b64("ML-KEM-1024"),
+            },
+        )
+        assert resp_mismatch.status_code == 406
+        supported = resp_mismatch.json()["detail"]["supported_algorithms"]
+        assert "ML-KEM-768" in supported
+
+        # Zweiter Request: Retry mit dem Server-vorgeschlagenen Algorithmus.
+        chosen_alg = supported[0]
+        resp_retry = await ac.post(
+            "/session/init",
+            headers={"Authorization": "Bearer dummy"},
+            json={
+                "kem_alg": chosen_alg,
+                "encapsulation_key": _valid_pk_b64(chosen_alg),
+            },
+        )
+        assert resp_retry.status_code == 200
+        assert resp_retry.json()["kem_alg"] == chosen_alg
