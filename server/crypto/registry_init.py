@@ -3,7 +3,9 @@
 Story-Kontext:
 - PQC-21 (CRY-1): Registry-Setup, Placeholder-Plugins.
 - PQC-25 (CRY-5): Signaturen werden jetzt von ``LibOqsSignature`` bedient.
-  Placeholder-Klassen bleiben als Test-Hilfsmittel und fuer KEMs bis CRY-3.
+- PQC-24 (CRY-4): KEMs werden jetzt von ``LibOqsKem`` bedient.
+  Placeholder-Klassen bleiben als Test-Hilfsmittel (Unit-Tests die liboqs
+  nicht laden wollen).
 
 **Wichtig:** Algorithmen sind in den ``_SUPPORTED_*_ALGORITHMS``-Sets
 geweisslistet. Unbekannte Namen in der Config werfen
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from crypto.adapters.liboqs_kem import LibOqsKem
 from crypto.adapters.liboqs_signature import LibOqsSignature
 from crypto.registry import RegistryError
 
@@ -115,8 +118,8 @@ def init_crypto_registry(
     """Befuelle ``registry`` mit Plugins fuer die in der Config aufgelisteten
     Algorithmen.
 
-    Sprint-1-Stand:
-    - KEMs: ``PlaceholderKem`` (CRY-3 ersetzt durch echte liboqs-KEM-Adapter)
+    Aktueller Stand (Sprint 3):
+    - KEMs: ``LibOqsKem`` (echt, seit PQC-24 CRY-4)
     - Signaturen: ``LibOqsSignature`` (echt, seit PQC-25 CRY-5)
 
     Raises:
@@ -127,10 +130,10 @@ def init_crypto_registry(
         if alg not in _SUPPORTED_KEM_ALGORITHMS:
             msg = (
                 f"Unsupported KEM algorithm '{alg}' in crypto.kem.supported. "
-                f"Sprint-1-Whitelist: {sorted(_SUPPORTED_KEM_ALGORITHMS)}"
+                f"Whitelist: {sorted(_SUPPORTED_KEM_ALGORITHMS)}"
             )
             raise UnsupportedAlgorithmError(msg)
-        registry.register_kem(alg, PlaceholderKem(alg))
+        registry.register_kem(alg, LibOqsKem(alg))
 
     for alg in signature_supported:
         if alg not in _SUPPORTED_SIGNATURE_ALGORITHMS:
@@ -138,5 +141,4 @@ def init_crypto_registry(
                 f"Unsupported signature algorithm '{alg}' in crypto.signature.supported. "
                 f"Sprint-1-Whitelist: {sorted(_SUPPORTED_SIGNATURE_ALGORITHMS)}"
             )
-            raise UnsupportedAlgorithmError(msg)
-        registry.register_signature(alg, LibOqsSignature(alg))
+       

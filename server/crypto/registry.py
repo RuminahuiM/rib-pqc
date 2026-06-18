@@ -54,8 +54,9 @@ class KemPlugin(Protocol):
     """Strukturelle Schnittstelle fuer KEM-Implementationen (ML-KEM-* etc.).
 
     Spec orientiert sich an liboqs.KeyEncapsulation und ML-KEM (FIPS 203).
-    Konkrete Adapter (z.B. PQC-25 LibOqsKem) muessen lediglich diese Methoden
-    bereitstellen, kein ``isinstance(plugin, KemPlugin)``-Vererbung noetig.
+    Konkrete Adapter (z.B. ``LibOqsKem`` aus PQC-24 CRY-4) muessen lediglich
+    diese Methoden bereitstellen, kein ``isinstance(plugin, KemPlugin)``-
+    Vererbung noetig.
     """
 
     @property
@@ -166,4 +167,4 @@ class CryptoRegistry:
 
     def supported_signature(self) -> list[str]:
         """Liefert die Namen aller registrierten Signatur-Algorithmen, sortiert."""
-        return sorted(self._signature)
+        return sorte

@@ -708,3 +708,20 @@ Microsoft-Login App-Seite implementiert. Refactor zu generischem handleOAuthLogi
 **Sprint-2 funktional komplett:** PQC-84 + PQC-36 + PQC-37 + PQC-38 + PQC-39 + PQC-40 + PQC-41 + PQC-42 + PQC-43 + PQC-44 + PQC-45 + PQC-60 + PQC-61 = **57 SP** Done (92% von 62 SP geplant).
 
 Restscope: keine Must-Stories. Demo-Session + Sprint-3 Doku-Polish + F-086 OAuth-App-Type-Switch.
+
+
+## Findings aus PQC-24 (CRY-4) Closing-Review am 18.06.2026
+
+LibOqsKem-Adapter fuer ML-KEM-768 + ML-KEM-1024 implementiert. Stateless per-Call oqs-Instanziierung analog LibOqsSignature (PQC-25). 17 Tests, in Sandbox skipped (etabliertes Pattern), liboqs-Tests laufen im Docker mit echter liboqs-Library. registry_init.py von PlaceholderKem auf LibOqsKem umgestellt. 215 passed, keine Test-Regressions.
+
+### Tier-2 (Polish/Tracking)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-088 | AC-3 verifiziert via Property-Tests (Roundtrip + FIPS-203-Output-Sizes + Implicit-Rejection) plus liboqs-interne KAT-Validation beim Build, statt externer NIST-KAT-Datei-Replay. Pragmatische Entscheidung weil KAT-Files mehrere MB und liboqs intern bereits gegen sie validiert. | Info | Sprint 4 vor Bericht-Abgabe optional explizites KAT-Replay als zusaetzliche Verifikation | open |
+| F-089 | LibOqsKem instanziiert `oqs.KeyEncapsulation` pro Call (stateless). Pro SES-1-Request entsteht damit ein Setup-Overhead. Bei hoher Last waere ein KEM-Pool oder Per-Algorithm-Singleton-Pattern denkbar. Aktuell kein Bottleneck zu erwarten. | May | vor Production-Load-Test pruefen (Sprint 4 oder spaeter) | open |
+| F-090 | FIPS-203-Implicit-Rejection-Verhalten ist im Adapter-Docstring dokumentiert, muss aber im SES-1-Aufrufer (Session-Init-Endpoint) und DCH-1 (AEAD-Layer) prominent gehandhabt werden. Adapter selber wirft KEINEN Error bei "wrong" ciphertext, das Authentication-Signal kommt vom AEAD-Tag. | Info | bei PQC-46 SES-1 und PQC-50 DCH-1 Story-Start erneut pruefen | open |
+
+### Historie-Update 18.06.2026 (PQC-24)
+
+Sprint-3 Start: erste Story Done. Crypto-Foundation-KEM-Adapter steht. Nebenbei mitgenommen: Doc-Fix in crypto/registry.py (KemPlugin-Beispiel war falsch auf PQC-25 verwiesen statt PQC-24).
