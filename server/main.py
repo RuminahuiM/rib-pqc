@@ -305,6 +305,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.oidc_jwks_service = oidc_jwks_service
     app.state.id_token_verifier = id_token_verifier
     app.state.session_service = session_service
+    # PQC-51 DCH-2: Default NoOp Nonce-Tracker. PQC-53 DCH-4 ersetzt durch
+    # RedisNonceTracker. Dependency-Wiring liest aus app.state.nonce_tracker.
+    from services.nonce_tracker import NoOpNonceTracker as _NoOpNonceTracker
+
+    app.state.nonce_tracker = _NoOpNonceTracker()
+    logger.info("nonce_tracker.initialized backend=NoOp")
     try:
         yield
     finally:

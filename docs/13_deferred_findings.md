@@ -891,3 +891,30 @@ Sprint-3 Story 8 von 18 Done. App-Crypto-Foundation komplett, parallel zur Serve
 | F-106 | **resolved** durch login.tsx-Truncation-Hotfix: duplizierte styles-Block-Fragmente ab Zeile 313 entfernt, File von 383 auf 312 Zeilen verkleinert. TypeScript-Compile-Error damit weg. Pre-existing aus PQC-61-Truncation, in PQC-26-Review aufgedeckt + sofort gefixt. |
 
 App-Stories koennen jetzt sauber starten.
+
+
+## Findings aus PQC-51 (DCH-2) Code-Review am 26.06.2026
+
+Header-basiertes Session-Routing als FastAPI-Dependency (`authenticated_session`) implementiert. 11 Detail-AC, 13 Tests, alle gruen. Volle Suite 261 passed (+13). Coverage 97.8% auf neuer Dependency. Wire-Format Sec 5.4 in-Story um die neuen Error-Codes erweitert (F-109 resolved). Edit-Tool hat erneut Files truncated (F-108, betraf auch wire_format.md), per Python-Patch-Restore gefixt.
+
+### Tier-1 (in-Story resolved)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-108 | `server/main.py` von Edit-Tool von 417 auf 406 Zeilen abgesaegt beim Insert des NoOpNonceTracker-Wiring. Sechster wiederholter Vorfall (vgl. F-093/F-096/F-106). Bei Versuch denselben Wire-Format-Edit ueber Edit-Tool zu machen, wurde `docs/wire_format.md` ebenfalls truncated. Edit-Tool ist nicht nur fuer Python-Files, sondern auch fuer Markdown unsicher. | Should | sofort | **resolved** in-Story per `cp` aus `git show HEAD:` + Python-Patch-Script. Memory `feedback_edit_truncation_safeguard.md` verschaerft (Markdown-Files explizit). |
+| F-109 | `docs/wire_format.md` Sec 5.4 listet nur 4 Error-Codes (`session_missing`/`session_expired`/`nonce_reused`/`aead_decrypt_failed`) und sagt Body-Format `{"error": "..."}`. Implementation in PQC-51 produziert 7 Codes (zusaetzlich `nonce_missing`/`nonce_format_invalid`/`payload_not_json`) und nutzt FastAPI-Idiom `{"detail": {"error": "..."}}`. Auch AAD-Konvention (ASCII-Bytes) war nicht explizit dokumentiert. | Should | in-Story | **resolved** durch wire_format.md v0.3-Update: Sec 5.4 erweitert, Body-Konvention auf `{"detail": {"error": ...}}` aligned, AAD-Konvention festgeschrieben. |
+
+### Tier-2 (Polish/Tracking)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-110 | `dependencies/authenticated_session.py` definiert lokale `_get_facade`/`_get_session_service`-Helper die exakt das Pattern aus `routers/session.py` duplizieren. Bei weiteren Endpoints (DCH-3 PQC-52, kuenftige Routes) entsteht mehr Code-Dup. Refactor: Shared-Helper-Module `dependencies/state.py` mit `get_facade`/`get_session_service`/`get_token_service`/`get_nonce_tracker`, dann `session.py` und `authenticated_session.py` von dort importieren. | May | Sprint-4-Polish, oder bei DCH-3 PQC-52 wenn dasselbe Pattern wieder auftaucht | open |
+| F-111 | Branch-Coverage 97.8% auf `dependencies/authenticated_session.py`: nur der defensive Fallback `nonce_tracker is None` in `_get_nonce_tracker` ist untested (Line 150). Bewusst defensive Code-Pfad, lass offen. | Info | Sprint-4-Polish | open |
+| F-112 | Bei `payload_not_json` (Plaintext OK aber kein UTF-8-JSON oder kein dict) wird die Nonce NICHT als gesehen markiert. Begruendung: Decrypt war erfolgreich (= AEAD-Tag stimmt, kein Forge), das ist also bonafide-Traffic mit App-Side-Bug, kein Replay-Risiko. Bewusste Entscheidung. Dokumentiert auch im Code-Kommentar von authenticated_session.py. | Info | informational | open |
+| F-113 | `_AES_GCM_NONCE_BYTES = 12` ist in `dependencies/authenticated_session.py` als lokale Konstante. Same Wert in `crypto/facade.aead_random_nonce()` als Magic-Number 12 (PQC-50). Bei Algorithmus-Wechsel waeren zwei Stellen zu pflegen. Wenn `CryptoFacade` einen Public-Constant exportiert, hier importieren. | Info | bei naechstem facade-Touch oder DCH-3/DCH-4 | open |
+
+### Historie-Update 26.06.2026 (PQC-51)
+
+Sprint-3 Story 9 von 18 Done. DCH-Foundation steht: Dependency-Pattern fuer geschuetzte Endpoints inkl. NoOp-NonceTracker-Hook fuer DCH-4. DCH-3 (PQC-52, /api/profile) kann direkt darauf aufbauen mit `Annotated[AuthenticatedSession, Depends(authenticated_session)]`. **40 SP von 79 SP Done (51%).**
+
+**Edit-Tool-Truncation-Vorfall #6 hat sich auch auf Markdown-Files ausgeweitet** - Memory hat das Pattern jetzt sprachunabhaengig verankert. Default-Strategie fuer wiederkehrende Files >150 Zeilen ist Python-Patch-Script mit assert-checks.

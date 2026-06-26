@@ -180,12 +180,21 @@ PQC-52 DCH-3 finalisiert.
 
 ### 5.4 Fehler-Responses
 
-| Status | Body | Trigger |
+**Body-Konvention (PQC-51 DCH-2):** alle Fehler liefern FastAPI-idiomatisch
+`{"detail": {"error": "<code>"}}`. Konsistent mit POST /session/init (PQC-46).
+
+| Status | Detail-Error | Trigger |
 | --- | --- | --- |
-| 401 `session_missing` | `{"error": "session_missing"}` | X-Session-Id Header fehlt |
-| 401 `session_expired` | `{"error": "session_expired"}` | session_id nicht in Redis (TTL abgelaufen oder unbekannt) |
-| 400 `nonce_reused` | `{"error": "nonce_reused"}` | Nonce schon getrackt (DCH-4 Replay-Schutz) |
-| 400 `aead_decrypt_failed` | `{"error": "aead_decrypt_failed"}` | AEAD-Tag-Mismatch (CryptoFacade `AeadDecryptError`). Security-Log-Eintrag mit Severity WARNING. |
+| 401 | `session_missing` | `X-Session-Id`-Header fehlt |
+| 401 | `nonce_missing` | `X-Nonce`-Header fehlt |
+| 400 | `nonce_format_invalid` | `X-Nonce` kein base64url oder Laenge != 12 Byte (NIST SP 800-38D Section 8.2 Empfehlung). F-092 Implementation. |
+| 401 | `session_expired` | session_id nicht in Redis (TTL abgelaufen oder unbekannt). Side-Channel-Schutz: kein Unterschied zwischen never-existed und expired. |
+| 400 | `nonce_reused` | Nonce schon getrackt (DCH-4 Replay-Schutz, PQC-53). |
+| 400 | `aead_decrypt_failed` | AEAD-Tag-Mismatch (`CryptoFacade.AeadDecryptError`). **Security-Log-Eintrag mit Severity WARNING.** |
+| 400 | `payload_not_json` | Plaintext ist kein gueltiges UTF-8 JSON oder JSON-Top-Level ist nicht `dict` (Endpoint-Konvention). |
+
+**AAD-Konvention:** AAD = `session_id.encode("ascii")`, identisch zwischen
+Server (`dependencies/authenticated_session.py`) und App (`@noble/ciphers`).
 
 ---
 
@@ -228,3 +237,4 @@ Sprint-3-Defaults: `ML-DSA-65` (Signatur), `ML-KEM-768` (KEM), `HKDF-SHA256`
 | --- | --- | --- |
 | 0.1 | 18.06.2026 | Initial fuer PQC-27 CRY-7. Token-Header, Session-Init, Session-Record, Encrypted-Channel-Wire-Format. |
 | 0.2 | 18.06.2026 | PQC-48 SES-3: Session-Record-Felder auf Design 5.2 + Implementation aligniert (expires_at statt auth_method, unix-ts statt ISO-created_at). F-095 closed durch SessionConfig in config.py. |
+| 0.3 | 26.06.2026 | PQC-51 DCH-2: Sec 5.4 um `nonce_missing`/`nonce_format_invalid`/`payload_not_json` erweitert, Body-Konvention auf `{detail: {error: ...}}` aligniert, AAD-Konvention auf `session_id.encode('ascii')` festgeschrieben. F-109 closed. |
