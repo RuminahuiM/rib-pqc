@@ -68,10 +68,21 @@ class _StubFacade:
 
 
 class _FakeNonceTracker:
-    """In-Memory Nonce-Tracker fuer Replay-Tests."""
+    """In-Memory Nonce-Tracker fuer Replay-Tests.
+
+    PQC-53 DCH-4: atomarer ``check_and_register`` als primary API.
+    ``has_seen``/``record`` als Legacy-Stubs erhalten fuer Kompatibilitaet.
+    """
 
     def __init__(self) -> None:
         self._seen: set[tuple[str, bytes]] = set()
+
+    async def check_and_register(self, *, session_id: str, nonce: bytes) -> bool:
+        key = (session_id, nonce)
+        if key in self._seen:
+            return False
+        self._seen.add(key)
+        return True
 
     async def has_seen(self, *, session_id: str, nonce: bytes) -> bool:
         return (session_id, nonce) in self._seen
@@ -437,15 +448,22 @@ async def test_dch2_nonce_with_padding_accepted(
 
 
 def test_dch2_noop_tracker_default_behaviour() -> None:
-    """NoOpNonceTracker liefert immer False und ist record-idempotent."""
+    """NoOp: check_and_register=True, has_seen=False, record=no-op.
+
+    Updated PQC-53: check_and_register ist die primary API. NoOp signalisiert
+    'jede Nonce ist neu' (= no replay protection, Dev-Default).
+    """
     import asyncio
 
     tracker = NoOpNonceTracker()
 
     async def run() -> None:
+        # Primary API: jede Nonce gilt als "erste Verwendung".
+        assert await tracker.check_and_register(session_id="a", nonce=b"x") is True
+        assert await tracker.check_and_register(session_id="a", nonce=b"x") is True
+        # Legacy-API: has_seen bleibt immer False (NoOp), record ist no-op.
         assert await tracker.has_seen(session_id="a", nonce=b"x") is False
         await tracker.record(session_id="a", nonce=b"x")
-        # Auch nach record bleibt has_seen False (NoOp-Verhalten by design).
         assert await tracker.has_seen(session_id="a", nonce=b"x") is False
 
     asyncio.run(run())

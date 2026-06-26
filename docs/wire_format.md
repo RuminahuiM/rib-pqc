@@ -196,6 +196,42 @@ PQC-52 DCH-3 finalisiert.
 **AAD-Konvention:** AAD = `session_id.encode("ascii")`, identisch zwischen
 Server (`dependencies/authenticated_session.py`) und App (`@noble/ciphers`).
 
+### 5.5 Replay-Schutz (PQC-53 DCH-4)
+
+**Mechanik:** Pro Request wird die Nonce nach erfolgreichem AEAD-Decrypt im
+`RedisNonceTracker` registriert. Atomare Operation `SET nonce:{session_id}:{nonce_b64url} 1 NX EX {ttl}`.
+Wenn der Key bereits existiert (Replay), liefert Redis `nil` und der Server
+antwortet mit 400 `nonce_reused` plus WARNING-Log.
+
+**TTL:** gleich `settings.session.ttl_seconds` (Default 900s). Nach Session-
+Ablauf ist Replay eh durch `session_expired` blockiert; laenger persistente
+Tracker-Eintraege bringen keinen Sicherheitsgewinn.
+
+**Reihenfolge:** Replay-Check NACH Decrypt + Parse. Forge-Versuche mit
+zufaelliger Nonce schlagen am AEAD-Tag fehl, kein Tracker-Slot wird
+verbrannt (Side-Channel-frei).
+
+**Redis-Namespace:** eigene DB `settings.session.replay_redis_db` (Default 4),
+separat von Session-Records (db=3), OIDC-State (db=2), Rate-Limit (db=1).
+
+**Trade-Off (NFR-Sec-2, PQC-53 AC-3):** Stateful (Redis) statt Timestamp-basiert
+gewaehlt.
+
+| Aspekt | Stateful (gewaehlt) | Timestamp-basiert (verworfen) |
+| --- | --- | --- |
+| Storage | shared Redis-DB | server-stateless, JWT-iat im Token |
+| Clock-Skew | irrelevant | kritisch (Mobile-Clients driften) |
+| TTL-Steuerung | Redis-TTL deterministisch | Toleranz-Window weicher |
+| Race-Condition | atomar via SET NX EX | unkritisch |
+| Multi-Instance | trivial (shared Redis) | trivial (kein shared State) |
+| Komplexitaet | Redis-Client + DB | NTP-Sync + Toleranz-Logic |
+
+Begruendung Stateful: Redis ist bereits Teil der Architektur (Session-Store,
+Rate-Limit, OIDC-State), Mobile-Clock-Skew bei iPhones macht Timestamp-Window
+unzuverlaessig, deterministisches Verhalten ohne Toleranz-Edge-Cases. Im
+Bericht wird der Timestamp-Ansatz als Alternative fuer stateless-Microservices
+ohne shared Redis erwaehnt.
+
 ---
 
 ## 6. Algorithmus-Wechsel-Mechanik
@@ -238,3 +274,4 @@ Sprint-3-Defaults: `ML-DSA-65` (Signatur), `ML-KEM-768` (KEM), `HKDF-SHA256`
 | 0.1 | 18.06.2026 | Initial fuer PQC-27 CRY-7. Token-Header, Session-Init, Session-Record, Encrypted-Channel-Wire-Format. |
 | 0.2 | 18.06.2026 | PQC-48 SES-3: Session-Record-Felder auf Design 5.2 + Implementation aligniert (expires_at statt auth_method, unix-ts statt ISO-created_at). F-095 closed durch SessionConfig in config.py. |
 | 0.3 | 26.06.2026 | PQC-51 DCH-2: Sec 5.4 um `nonce_missing`/`nonce_format_invalid`/`payload_not_json` erweitert, Body-Konvention auf `{detail: {error: ...}}` aligniert, AAD-Konvention auf `session_id.encode('ascii')` festgeschrieben. F-109 closed. |
+| 0.4 | 26.06.2026 | PQC-53 DCH-4: neue Sec 5.5 Replay-Schutz mit `RedisNonceTracker`, atomares `SET NX EX`-Pattern, TTL = Session-TTL, eigene DB=4. Trade-Off Stateful vs Timestamp dokumentiert (Stateful gewaehlt). |

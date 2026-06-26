@@ -305,15 +305,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.oidc_jwks_service = oidc_jwks_service
     app.state.id_token_verifier = id_token_verifier
     app.state.session_service = session_service
-    # PQC-51 DCH-2: Default NoOp Nonce-Tracker. PQC-53 DCH-4 ersetzt durch
-    # RedisNonceTracker. Dependency-Wiring liest aus app.state.nonce_tracker.
-    from services.nonce_tracker import NoOpNonceTracker as _NoOpNonceTracker
 
-    app.state.nonce_tracker = _NoOpNonceTracker()
-    logger.info("nonce_tracker.initialized backend=NoOp")
+    # PQC-53 DCH-4: RedisNonceTracker fuer Replay-Schutz. Eigener Redis-Client
+    # mit eigener DB (Default 4), separater Namespace nonce:{session_id}:{nonce_b64url}.
+    # TTL = Session-TTL: nach Session-Ablauf ist Replay eh durch session_expired
+    # geblockt, kein Mehrwert in laenger persistenten Nonces.
+    from services.nonce_tracker import RedisNonceTracker as _RedisNonceTracker
+
+    replay_redis_url = f"{redis_base}/{settings.session.replay_redis_db}"
+    replay_redis = redis_async.from_url(replay_redis_url, decode_responses=False)
+    nonce_tracker = _RedisNonceTracker(
+        redis_client=replay_redis,
+        ttl_seconds=settings.session.ttl_seconds,
+    )
+    app.state.nonce_tracker = nonce_tracker
+    app.state.replay_redis = replay_redis
+    logger.info(
+        "nonce_tracker.initialized",
+        backend="Redis",
+        replay_redis_url=replay_redis_url,
+        ttl_seconds=settings.session.ttl_seconds,
+    )
     try:
         yield
     finally:
+        await replay_redis.aclose()
         await oidc_exchange_service.aclose()
         await oidc_redis.aclose()
         await db_engine.dispose()

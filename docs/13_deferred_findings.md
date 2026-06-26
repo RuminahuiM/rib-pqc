@@ -918,3 +918,24 @@ Header-basiertes Session-Routing als FastAPI-Dependency (`authenticated_session`
 Sprint-3 Story 9 von 18 Done. DCH-Foundation steht: Dependency-Pattern fuer geschuetzte Endpoints inkl. NoOp-NonceTracker-Hook fuer DCH-4. DCH-3 (PQC-52, /api/profile) kann direkt darauf aufbauen mit `Annotated[AuthenticatedSession, Depends(authenticated_session)]`. **40 SP von 79 SP Done (51%).**
 
 **Edit-Tool-Truncation-Vorfall #6 hat sich auch auf Markdown-Files ausgeweitet** - Memory hat das Pattern jetzt sprachunabhaengig verankert. Default-Strategie fuer wiederkehrende Files >150 Zeilen ist Python-Patch-Script mit assert-checks.
+
+
+## Findings aus PQC-53 (DCH-4) Code-Review am 26.06.2026
+
+Replay-Schutz via Nonce-Tracking implementiert. `RedisNonceTracker` mit atomarem `SET NX EX`, eigene Redis-DB=4, TTL=Session-TTL. NonceTracker-Protocol um `check_and_register` erweitert (atomar, race-frei). DCH-2-Dependency umgestellt auf NACH-Decrypt-Reihenfolge (Side-Channel-frei). 9 neue Tests + 13 angepasste DCH-2-Tests, volle Suite 270 passed (+9 vs DCH-2). docs/wire_format.md v0.4 mit Sec 5.5 Replay-Schutz + Trade-Off-Tabelle. AC-3 Trade-Off-Doku ist im Module-Docstring von `nonce_tracker.py` und in `wire_format.md` Sec 5.5 verankert.
+
+### Tier-1 (in-Story resolved)
+
+(keine, alle AC erfuellt ohne neue Must/Should-Findings)
+
+### Tier-2 (Polish/Tracking)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-114 | Bei Redis-Connection-Loss im `RedisNonceTracker.check_and_register` faellt der Call auf 500. Heisst: Replay-Schutz waere stillschweigend aus, bis Redis wieder da ist. Defensive Strategie: Health-Check fuer replay_redis im Startup, fail-closed (komplettes Routing blockieren) oder fail-open-mit-Alarm (Endpoint laeuft ohne Replay-Schutz, aber Sentinel-Alarm). | May | Sprint-4-Polish, vor Production-Demo | open |
+| F-115 | `SessionConfig.replay_redis_db = 4` ist neuer Default. Falls docker-compose oder dev-Setup-Doku auf bestimmte Redis-DB-Nummern setzt (z.B. nur db 0-3 reserviert), muesste das angepasst werden. Aktuell ist Redis kein-DB-limitierter Container (kein `--maxdb`), aber Setup-Doku in `server/README.md` koennte das erwaehnen. | Info | Sprint-4-Doku-Polish, mit F-060 buendeln | open |
+| F-116 | Race-Test in `test_redis_nonce_tracker.py` (`test_check_and_register_is_atomic_under_concurrency`) lauft gegen fakeredis. Fakeredis serialisiert Commands, das ist nicht echtes Concurrent-Behavior. Bei echtem Redis ist `SET NX EX` atomar (Single-Threaded-Server), aber ein Integration-Test mit echtem Redis-Container waere belastbarer. Buendeln mit F-067 (Integration-Test mit echtem Redis). | May | Sprint-4-Polish, mit F-067 | open |
+
+### Historie-Update 26.06.2026 (PQC-53)
+
+Sprint-3 Story 10 von 18 Done. DCH-Block ist vollstaendig (DCH-1 + DCH-2 + DCH-4), nur DCH-3 (PQC-52 `/api/profile`) fehlt noch fuer den Server-Pfad. **45 SP von 79 SP Done (57%).** Mit DCH-3 ist der Sprint-3-Goal-relevante Server-Pfad funktional komplett. NFR-Sec-2 ist mit DCH-4 erfuellt.

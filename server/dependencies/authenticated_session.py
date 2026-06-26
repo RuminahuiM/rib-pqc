@@ -248,17 +248,6 @@ async def authenticated_session(
             detail={"error": "session_expired"},
         )
 
-    # DCH-4-Hook: Replay-Check (NoOp im Sprint 3 bis PQC-53).
-    if await nonce_tracker.has_seen(session_id=session_id, nonce=nonce):
-        logger.warning(
-            "dch2.nonce_reused session_id_prefix=%s",
-            session_id[:8],
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "nonce_reused"},
-        )
-
     # Body als raw octet-stream lesen.
     body = await request.body()
 
@@ -309,10 +298,25 @@ async def authenticated_session(
             detail={"error": "payload_not_json"},
         )
 
-    # Erst NACH erfolgreichem Decrypt + Parse: Nonce als gesehen markieren.
-    # Frueher waere ein Side-Channel: gueltige Forge-Versuche koennten
-    # Nonces "verbrennen".
-    await nonce_tracker.record(session_id=session_id, nonce=nonce)
+    # DCH-4 (PQC-53): atomarer Replay-Check via NonceTracker.
+    # Reihenfolge NACH Decrypt+Parse ist absichtlich Side-Channel-frei:
+    # nur bonafide (= AEAD-Tag-verifizierte) Nonces werden im Tracker
+    # registriert, Forge-Versuche mit zufaelligen Nonces verbrennen keine
+    # Replay-Slots. check_and_register ist atomar (Redis SET NX EX), das
+    # schliesst die Race-Condition aus, die das alte has_seen->record-Paar
+    # noch offen liess.
+    first_use = await nonce_tracker.check_and_register(
+        session_id=session_id, nonce=nonce
+    )
+    if not first_use:
+        logger.warning(
+            "dch2.nonce_reused session_id_prefix=%s",
+            session_id[:8],
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "nonce_reused"},
+        )
 
     logger.debug(
         "dch2.authenticated session_id_prefix=%s user_id=%s body_len=%d plaintext_len=%d",

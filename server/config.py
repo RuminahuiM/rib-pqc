@@ -180,12 +180,16 @@ class SessionConfig(BaseModel):
       Untergrenze 60 (Test-Friendly), Obergrenze 86400 (24h, Best-Practice).
     - ``session_redis_db``: Separate Redis-DB-Nummer fuer den Session-Store
       (Default 3), getrennt von Rate-Limit (1), OIDC-State (2) und Allgemein (0).
+    - ``replay_redis_db``: Separate Redis-DB-Nummer fuer Nonce-Replay-Tracking
+      (PQC-53 DCH-4, Default 4). Eigener Namespace fuer die Single-Use-Eintraege
+      via SET NX EX, getrennt von session_records.
     - ``hkdf_info``: Domain-Separation-Bytes fuer HKDF-Session-Key-Ableitung
       (PQC-47 SES-2). Default ``b"app-session-v1"``.
     """
 
     ttl_seconds: int = Field(default=900, ge=60, le=86400)
     session_redis_db: int = Field(default=3, ge=0, le=15)
+    replay_redis_db: int = Field(default=4, ge=0, le=15)
     hkdf_info: bytes = Field(default=b"app-session-v1")
 
 
