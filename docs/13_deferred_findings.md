@@ -861,3 +861,33 @@ Algorithmus-Negotiation: 2 dezidierte Tests in test_session_router.py (Mismatch-
 ### Historie-Update 18.06.2026 (PQC-49)
 
 Sprint-3 Story 7 von 18 Done. Session-Server-Block (SES-1 + SES-2 + SES-3 + SES-4) faktisch komplett. **30 SP von 79 SP Done (38%).** Mini-Demo-Trigger erreicht, empfohlen vor DCH-1.
+
+
+## Findings aus PQC-26 (CRY-6) Closing-Review am 18.06.2026
+
+App-Side Crypto-Abstraction implementiert: 7 TypeScript-Module + 6 Jest-Test-Files unter `app/src/crypto/`. Jest + ts-jest dev-deps + jest.config.js. Cross-Validation-Test gegen Python-Server-Output. AC-2 von PQC-47 und Teil von PQC-49 resolved.
+
+### Resolved durch PQC-26
+
+| ID | Resolution |
+|---|---|
+| F-098 | **resolved** durch hkdf.test.ts Cross-Validation-Test mit Hex-Vector aus Python-Server (99c8dbb0a477ecbfcce86d97e1b56e44938fb5b0a92875671e4b5064f2aa634f) |
+
+### Tier-2 (Polish/Tracking)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-106 | `app/src/app/login.tsx` ist seit PQC-61-Commit e279433 corrupt: styles-Objekt 2x dupliziert mit "enter"-Fragment, TypeScript-Compile failed ab Zeile 313. Pre-existing aus Sprint 2 Edit-Truncation. Sollte als Hotfix gefixt werden vor App-Stories weiterlaufen. | Should | vor PQC-58 APP-5 oder als eigener Hotfix-Commit | open |
+| F-107 | Sandbox kann TypeScript/Jest nicht ausfuehren (kein npm install in Sandbox-Env). App-Tests laufen nur lokal beim User. Analog liboqs-Skip-Pattern fuer Server. Sprint-4-Polish: optional mock-modules fuer Sandbox-CI. | May | Sprint 4 Polish | open |
+
+### Historie-Update 18.06.2026 (PQC-26)
+
+Sprint-3 Story 8 von 18 Done. App-Crypto-Foundation komplett, parallel zur Server-Foundation. **35 SP von 79 SP Done (44%).** Foundation-Phase quasi durch, naechster Block ist DCH (Data-Channel-Server) + App-UI-Stories.
+
+### Nachtrag PQC-26: F-106 Hotfix (18.06.2026)
+
+| ID | Resolution |
+|---|---|
+| F-106 | **resolved** durch login.tsx-Truncation-Hotfix: duplizierte styles-Block-Fragmente ab Zeile 313 entfernt, File von 383 auf 312 Zeilen verkleinert. TypeScript-Compile-Error damit weg. Pre-existing aus PQC-61-Truncation, in PQC-26-Review aufgedeckt + sofort gefixt. |
+
+App-Stories koennen jetzt sauber starten.
