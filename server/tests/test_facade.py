@@ -325,3 +325,64 @@ def test_facade_kem_hkdf_aead_full_pipeline(facade_with_kems: CryptoFacade) -> N
     blob = facade_with_kems.aead_encrypt(session_key_sender, nonce, plaintext, aad=session_id)
     restored = facade_with_kems.aead_decrypt(session_key_receiver, nonce, blob, aad=session_id)
     assert restored == plaintext
+
+
+# --- PQC-50 DCH-1: Dezidierte AES-256-GCM Wrapper-Tests ---
+
+
+def test_dch1_aead_random_nonce_returns_12_bytes(
+    facade_with_kems: CryptoFacade,
+) -> None:
+    """PQC-50 DCH-1 AC-1: 96-bit (12 Byte) Nonce-Generierung als Helper."""
+    del facade_with_kems
+    n = CryptoFacade.aead_random_nonce()
+    assert isinstance(n, bytes)
+    assert len(n) == 12
+
+
+def test_dch1_aead_random_nonce_is_unique(facade_with_kems: CryptoFacade) -> None:
+    """Sanity: zwei aufeinanderfolgende Nonces sind verschieden (CSPRNG-Quelle).
+
+    Voraussetzung fuer NIST SP 800-38D Section 8.2 (Nonce-Eindeutigkeit pro Key).
+    """
+    del facade_with_kems
+    n1 = CryptoFacade.aead_random_nonce()
+    n2 = CryptoFacade.aead_random_nonce()
+    assert n1 != n2
+
+
+def test_dch1_random_plaintext_roundtrip(facade_with_kems: CryptoFacade) -> None:
+    """PQC-50 DCH-1 AC-3: Round-Trip-Test mit zufaelligem Plaintext.
+
+    Pruft alles zusammen: aead_random_nonce + aead_encrypt + aead_decrypt
+    mit einer zufaelligen Payload-Groesse zwischen 1 und 1024 Byte.
+    """
+    key = os.urandom(32)
+    nonce = CryptoFacade.aead_random_nonce()
+    # Random-Laenge zwischen 1 und 1024
+    import secrets as _secrets
+
+    plaintext_len = _secrets.randbelow(1024) + 1
+    plaintext = os.urandom(plaintext_len)
+
+    blob = facade_with_kems.aead_encrypt(key, nonce, plaintext)
+    restored = facade_with_kems.aead_decrypt(key, nonce, blob)
+    assert restored == plaintext
+
+
+def test_dch1_aead_decrypt_tag_mismatch_raises_exception(
+    facade_with_kems: CryptoFacade,
+) -> None:
+    """PQC-50 DCH-1 AC-2: Tag-Mismatch wirft Exception (nicht silent-fail).
+
+    Dezidierte Variante zum SES-1-AEAD-Tag-Test, fokussiert auf das
+    Channel-Layer-Use-Case (kleine Payload typisch fuer API-Requests).
+    """
+    key = os.urandom(32)
+    nonce = CryptoFacade.aead_random_nonce()
+    blob = facade_with_kems.aead_encrypt(key, nonce, b'{"path": "/api/profile"}')
+    # Letztes Byte (Teil des Tags) flippen
+    tampered = bytearray(blob)
+    tampered[-1] ^= 0x01
+    with pytest.raises(AeadDecryptError):
+        facade_with_kems.aead_decrypt(key, nonce, bytes(tampered))

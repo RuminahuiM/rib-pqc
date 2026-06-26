@@ -87,3 +87,30 @@ describe("cipher AES-256-GCM", () => {
     ).toThrow(AeadDecryptError);
   });
 });
+
+
+// --- PQC-50 DCH-1: Dezidierte Cross-Compatibility-Tests ---
+
+describe("PQC-50 DCH-1: AES-GCM mit randomNonce + Random-Plaintext", () => {
+  test("random-length Plaintext (1..1024 byte) roundtrip", () => {
+    const key = freshKey();
+    const nonce = randomNonce();
+    const len = 1 + Math.floor(Math.random() * 1024);
+    const plaintext = new Uint8Array(len);
+    crypto.getRandomValues(plaintext);
+    const blob = aeadEncrypt(key, nonce, plaintext);
+    const restored = aeadDecrypt(key, nonce, blob);
+    expect(Buffer.from(restored).equals(Buffer.from(plaintext))).toBe(true);
+  });
+
+  test("randomNonce + Server-konformer AAD-Roundtrip (session_id als bytes)", () => {
+    // Simulation der DCH-2/DCH-3-Konvention: session_id wird als AAD gebunden.
+    const key = freshKey();
+    const nonce = randomNonce();
+    const sessionIdAad = new TextEncoder().encode("sess_AB1234567890CDEF");
+    const plaintext = new TextEncoder().encode('{"path":"/api/profile"}');
+    const blob = aeadEncrypt(key, nonce, plaintext, sessionIdAad);
+    const restored = aeadDecrypt(key, nonce, blob, sessionIdAad);
+    expect(new TextDecoder().decode(restored)).toBe('{"path":"/api/profile"}');
+  });
+});

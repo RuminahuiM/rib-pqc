@@ -183,7 +183,24 @@ class CryptoFacade:
         )
         return derived
 
-    # ----- AEAD (PQC-23 CRY-3, AES-256-GCM) -----
+    # ----- AEAD (PQC-23 CRY-3, AES-256-GCM; PQC-50 DCH-1) -----
+
+    @staticmethod
+    def aead_random_nonce() -> bytes:
+        """Erzeugt eine frische 12-Byte-CSPRNG-Nonce fuer AES-256-GCM.
+
+        Story-Bezug: PQC-50 DCH-1. Symmetrisches Pendant zur App-Side
+        ``randomNonce()`` aus ``app/src/crypto/cipher.ts``.
+
+        **NIST SP 800-38D Section 8.2 (F-092):** verlangt dass jede Nonce
+        pro Key nur einmal verwendet wird. CSPRNG-Quelle (``secrets``-Modul)
+        erfuellt das mit astronomisch hoher Wahrscheinlichkeit (96-bit
+        Birthday-Limit ~2^48 Sessions). Replay-Schutz via Nonce-Tracking
+        ist DCH-4 (PQC-53).
+        """
+        import secrets
+
+        return secrets.token_bytes(12)
 
     def aead_encrypt(
         self,
