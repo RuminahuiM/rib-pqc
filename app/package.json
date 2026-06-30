@@ -39,7 +39,10 @@
     "typescript": "~5.9.2",
     "jest": "^30.0.0",
     "ts-jest": "^29.2.0",
-    "@types/jest": "^29.5.0"
+    "@types/jest": "^29.5.0",
+    "@testing-library/react": "^16.1.0",
+    "jest-environment-jsdom": "^30.0.0",
+    "react-test-renderer": "19.1.0"
   },
   "scripts": {
     "start": "expo start",
