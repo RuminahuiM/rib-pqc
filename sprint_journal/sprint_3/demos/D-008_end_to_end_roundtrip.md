@@ -51,9 +51,28 @@ End-to-End-Pipeline ueber den vollstaendigen Server-Pfad in 8 Schritten:
 
 ## Ausfuehrung
 
+**Wichtig (einmalig, falls Image vorher gebaut):** Nach Dockerfile-Update
+Image rebuilden, damit `scripts/` und `dependencies/` im Container sind:
+
 ```bash
-# Aus dem infra/-Ordner heraus:
-docker compose exec auth-service python /app/scripts/demo_d008.py
+cd infra
+docker compose build auth-service
+docker compose up -d auth-service
+```
+
+**Git-Bash auf Windows konvertiert UNIX-Pfade automatisch.** Workaround:
+doppelten Slash am Anfang ODER `MSYS_NO_PATHCONV=1` ODER relativen Pfad
+(WORKDIR im Container ist `/app`):
+
+```bash
+# Variante A: doppelter Slash (Git-Bash-friendly)
+docker compose exec auth-service python //app/scripts/demo_d008.py
+
+# Variante B: env-Variable
+MSYS_NO_PATHCONV=1 docker compose exec auth-service python /app/scripts/demo_d008.py
+
+# Variante C: relativer Pfad (sauberste, cross-platform)
+docker compose exec auth-service python scripts/demo_d008.py
 ```
 
 Optional via Environment-Variablen ueberschreiben:
