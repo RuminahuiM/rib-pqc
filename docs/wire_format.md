@@ -172,11 +172,29 @@ plaintext, aad=session_id)`. Tag (16 Byte) ist hinten konkatenert.
 Verschluesselung an die Session, verhindert Cross-Session-Replay (Defense-
 in-Depth zusaetzlich zur Nonce-Tracking aus DCH-4).
 
-### 5.3 Response-Body
+### 5.3 Response-Body (PQC-52 DCH-3 finalisiert)
 
-Gleiche Struktur wie 5.2, aber mit frischer Nonce (`X-Response-Nonce`-Header
-falls Client den Tag selbst pruefen muss). Konkrete Konvention wird in
-PQC-52 DCH-3 finalisiert.
+**Format:**
+
+```text
+HTTP/1.1 200 OK
+X-Nonce: <base64url(12-byte fresh CSPRNG nonce, no padding)>
+Content-Type: application/octet-stream
+<ciphertext_and_tag>  // raw bytes, AES-256-GCM
+```
+
+- Response-`X-Nonce` ist eine **neue** CSPRNG-Nonce, NICHT die Request-Nonce.
+  Server generiert sie via `CryptoFacade.aead_random_nonce()` (PQC-50).
+- AAD wie in Sec 5.2: `session_id.encode("ascii")` (symmetrisch zu Request).
+- Response-Nonce wird im NonceTracker registriert (DCH-4-Konvention), damit
+  derselbe Wert nicht spaeter als Request-Nonce wiederverwendet werden kann.
+  Bei extrem unwahrscheinlicher Kollision (96-bit Birthday 2^48) -> HTTP 500
+  `response_nonce_collision`.
+- Plaintext-Format pro Endpoint individuell (UTF-8 JSON). UC-5 /api/profile
+  liefert `{user_id, email, auth_method, created_at}`.
+- Header-Name ist explizit `X-Nonce` (nicht `X-Response-Nonce`). Same Name
+  wie Request, Wert ist anders. Server-zu-Client und Client-zu-Server
+  Richtungen sind eindeutig.
 
 ### 5.4 Fehler-Responses
 
@@ -275,3 +293,4 @@ Sprint-3-Defaults: `ML-DSA-65` (Signatur), `ML-KEM-768` (KEM), `HKDF-SHA256`
 | 0.2 | 18.06.2026 | PQC-48 SES-3: Session-Record-Felder auf Design 5.2 + Implementation aligniert (expires_at statt auth_method, unix-ts statt ISO-created_at). F-095 closed durch SessionConfig in config.py. |
 | 0.3 | 26.06.2026 | PQC-51 DCH-2: Sec 5.4 um `nonce_missing`/`nonce_format_invalid`/`payload_not_json` erweitert, Body-Konvention auf `{detail: {error: ...}}` aligniert, AAD-Konvention auf `session_id.encode('ascii')` festgeschrieben. F-109 closed. |
 | 0.4 | 26.06.2026 | PQC-53 DCH-4: neue Sec 5.5 Replay-Schutz mit `RedisNonceTracker`, atomares `SET NX EX`-Pattern, TTL = Session-TTL, eigene DB=4. Trade-Off Stateful vs Timestamp dokumentiert (Stateful gewaehlt). |
+| 0.5 | 30.06.2026 | PQC-52 DCH-3: Sec 5.3 Response-Body finalisiert. X-Nonce-Header, fresh CSPRNG-Nonce per Response, AAD symmetrisch zu Request, NonceTracker-Registrierung der Response-Nonce. F-094 closed. |

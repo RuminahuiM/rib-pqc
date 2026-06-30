@@ -939,3 +939,26 @@ Replay-Schutz via Nonce-Tracking implementiert. `RedisNonceTracker` mit atomarem
 ### Historie-Update 26.06.2026 (PQC-53)
 
 Sprint-3 Story 10 von 18 Done. DCH-Block ist vollstaendig (DCH-1 + DCH-2 + DCH-4), nur DCH-3 (PQC-52 `/api/profile`) fehlt noch fuer den Server-Pfad. **45 SP von 79 SP Done (57%).** Mit DCH-3 ist der Sprint-3-Goal-relevante Server-Pfad funktional komplett. NFR-Sec-2 ist mit DCH-4 erfuellt.
+
+
+## Findings aus PQC-52 (DCH-3) Code-Review am 30.06.2026
+
+Geschuetzter API-Endpoint `/api/profile` als `POST` implementiert. Authentication + Decrypt + Replay-Check komplett aus DCH-2/DCH-4 geerbt (Depends(authenticated_session)). User-Lookup via UserRepository, Response-Encryption mit fresh CSPRNG-Nonce + NonceTracker-Eintrag (Cross-Talk-Schutz Request<->Response), Wire-Format Sec 5.3 finalisiert (F-094 close). 7 neue Tests, volle Suite 277 passed (+7 vs PQC-53).
+
+### Tier-1 (in-Story resolved)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-094 | docs/wire_format.md Sec 5.3 Response-Body war als TBD-in-DCH-3 markiert. | Info | in-Story | **resolved** durch wire_format.md v0.5: Sec 5.3 finalisiert mit X-Nonce-Header, raw octet-stream-Body, fresh CSPRNG-Nonce + Tracker-Eintrag, AAD symmetrisch zu Request. |
+
+### Tier-2 (Polish/Tracking)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-117 | `routers/api.py._format_iso_utc` ist eine kleine Helper-Function die das SQLite-TZ-Strip Edge-Case abdeckt (SQLite serialisiert `DateTime(timezone=True)` ohne TZ-Suffix). Bei Postgres-Migration ist `+00:00` immer im Output, dann waere `.replace("+00:00","Z")` direkt ausreichend. | May | Sprint-4 oder bei Postgres-Migration | open |
+| F-110 (Update) | DCH-3 hat das Code-Dup-Pattern fuer `_get_facade`/`_get_session_service`/`_get_nonce_tracker` zum dritten Mal wiederholt (jetzt auch in `routers/api.py`). Argument fuer Shared-Helper-Modul `dependencies/state.py` wird staerker. | May | Sprint-4-Polish | open (Update auf 3x-Dup) |
+| F-118 | `routers/api.py._get_db_session` dupliziert das Pattern aus `routers/auth.py.get_session`. Sprint-4 buendelt mit F-110 zu einem `dependencies/state.py` der ALLE Service-Lookups als Single-Source-of-Truth haelt. | Info | Sprint-4-Polish, mit F-110 buendeln | open |
+
+### Historie-Update 30.06.2026 (PQC-52)
+
+Sprint-3 Story 12 von 18 Done. **DCH-Block komplett: DCH-1 + DCH-2 + DCH-3 + DCH-4 alle Done.** **Server-Pfad fuer Sprint-Goal D-008 funktional komplett**: Token-Auth + KEM-Encaps + HKDF + SessionStore + Replay-Schutz + verschluesseltes /api/profile. 52 SP von 79 SP Done (66%). Restscope: APP-Stories (APP-2/3/5/6) fuer Mobile-Seite. **F-100-Trigger (Demo nach DCH-3) erreicht** - Mini-Demo End-to-End-Roundtrip empfehlenswert.
