@@ -49,6 +49,42 @@ End-to-End-Pipeline ueber den vollstaendigen Server-Pfad in 8 Schritten:
 
 ---
 
+## Netzwerk-Topologie + BASE_URL
+
+Aus Container-Sicht (Demo laeuft IM `auth-service`-Container):
+
+| Endpoint | Erreichbar als | Schicht |
+| --- | --- | --- |
+| FastAPI direkt (kein nginx, kein TLS) | `http://localhost:8000` (Default) | App-Layer-PQ (ML-KEM + AES-GCM) |
+| nginx HTTP-Proxy | `http://nginx:80` | App-Layer-PQ via Proxy |
+| nginx HTTPS-Proxy (X25519MLKEM768) | `https://nginx:443` (`verify=False`) | App-Layer-PQ + Transport-Layer-PQ |
+
+Aus Host-Sicht (Demo extern, z.B. lokales liboqs):
+
+| Endpoint | Erreichbar als |
+| --- | --- |
+| nginx HTTP | `http://localhost:8080` |
+| nginx HTTPS | `https://localhost:8443` |
+
+**Default** ist `http://localhost:8000` (Container-intern, FastAPI direkt).
+Damit ist die Demo out-of-the-box lauffaehig. Der TLS-Layer (X25519MLKEM768)
+ist Sprint-2 PQC-43/44/45 und kein Teil des D-008-Scope, weil D-008
+die **App-Layer-PQ** demonstriert (ML-KEM-768-Handshake + AES-256-GCM-Channel).
+
+**Override** wenn du den nginx-Hop testen willst:
+
+```bash
+# HTTP via nginx-Proxy (zeigt Reverse-Proxy-Funktionalitaet)
+docker compose exec -e DEMO_BASE_URL=http://nginx:80 \
+    auth-service python scripts/demo_d008.py
+
+# HTTPS via nginx mit X25519MLKEM768 (App-Layer-PQ + Transport-Layer-PQ)
+docker compose exec -e DEMO_BASE_URL=https://nginx:443 \
+    auth-service python scripts/demo_d008.py
+# (Hinweis: aktuell wuerde Demo TLS-Verify nicht ausschalten - May-Polish
+#  fuer eine spaetere Variante mit verify=False oder echtem CA-Trust.)
+```
+
 ## Ausfuehrung
 
 **Wichtig (einmalig, falls Image vorher gebaut):** Nach Dockerfile-Update

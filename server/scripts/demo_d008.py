@@ -60,7 +60,14 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-BASE_URL = os.environ.get("DEMO_BASE_URL", "http://localhost:8080")
+# Default: FastAPI direkt im selben Container (port 8000). Aus Sicht des
+# auth-service-Containers ist `localhost:8000` der FastAPI-Server selbst.
+# Wer den nginx-Hop mit X25519MLKEM768-TLS testen will, ueberschreibt
+# `DEMO_BASE_URL=http://nginx:80` (HTTP via Reverse-Proxy) oder
+# `DEMO_BASE_URL=https://nginx:443` (TLS, braucht verify=False oder
+# Cert-Trust). Der TLS-Layer ist Sprint-2 PQC-43/44/45 und nicht Teil
+# des D-008-Scope (App-Layer-PQ via ML-KEM + AES-GCM).
+BASE_URL = os.environ.get("DEMO_BASE_URL", "http://localhost:8000")
 DEMO_EMAIL = os.environ.get("DEMO_EMAIL", "demo@example.com")
 DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "demo-passwort-12345")
 KEM_ALG = "ML-KEM-768"
