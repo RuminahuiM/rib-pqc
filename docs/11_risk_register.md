@@ -54,11 +54,11 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 |---|---|---|---|---|---|---|
 | R-S01 | Sprint-Kapazität wird systematisch überschritten | Termin | Hoch | Mittel | 6 | Active |
 | R-T04 | OIDC-Provider-Setup-Komplexität (Google, Microsoft) | Technisch | Mittel | Hoch | 6 | Active |
-| R-S04 | Doku-Zeit in Sprint 4 zu kurz | Termin | Mittel | Hoch | 6 | Active |
+| R-S04 | Doku-Zeit in Sprint 4 zu kurz | Termin | Hoch | Hoch | 9 | Active (kritisch nach Sprint 3) |
 | R-T01 | liboqs-python Build oder Install schlägt fehl | Technisch | Mittel | Hoch | 6 | Mitigated (25.05) |
 | R-P01 | Motivationsverlust oder Burnout während Projekt | Persönlich | Mittel | Hoch | 6 | Active |
 | R-T03 | Mobile-OS-spezifische Crypto-Quirks (iOS/Android) | Technisch | Mittel | Mittel | 4 | Active |
-| R-T02 | @noble/post-quantum API-Instabilität | Technisch | Mittel | Mittel | 4 | Active |
+| R-T02 | @noble/post-quantum API-Instabilität | Technisch | Niedrig | Mittel | 2 | Monitor (nach Sprint 3) |
 | R-K01 | PQC-Standards-Verständnis-Tiefe nicht ausreichend | Wissen | Mittel | Mittel | 4 | Active |
 | R-K03 | React Native / Expo Spezifika nicht vertraut | Wissen | Mittel | Mittel | 4 | Active |
 | R-S05 | Externe Abhängigkeiten (OAuth-App-Setup) verzögern Sprint 2 | Termin | Mittel | Mittel | 4 | Active |
@@ -67,7 +67,7 @@ Risiken mit Score ≥ 4 sind "Active Watch", Score ≥ 6 sind "High Priority".
 | R-S02 | Sprint-0-Verzug (bereits eingetreten) | Termin | Eingetreten | Mittel | --- | Mitigated |
 | R-T05 | nginx + oqs-provider TLS-Setup bricht | Technisch | Niedrig | Mittel | 2 | Monitor |
 | R-S03 | Mentor-Termin-Scheduling (Termin 2 und 3 offen) | Termin | Mittel | Niedrig | 2 | Monitor |
-| R-T06 | Redis-Session-Store Bugs (Async, TTL, Nonce) | Technisch | Niedrig | Mittel | 2 | Monitor |
+| R-T06 | Redis-Session-Store Bugs (Async, TTL, Nonce) | Technisch | Niedrig | Mittel | 2 | Mitigated (28.06) |
 | R-E02 | liboqs / oqs-provider Breaking Changes | Extern | Niedrig | Mittel | 2 | Monitor |
 | R-P03 | Krankheit oder unerwartete Ausfälle | Persönlich | Niedrig | Hoch | 3 | Monitor |
 | R-E01 | NIST-Standard-Updates während Projekt | Extern | Sehr niedrig | Niedrig | 1 | Accepted |

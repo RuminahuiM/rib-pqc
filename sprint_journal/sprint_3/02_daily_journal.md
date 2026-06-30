@@ -23,9 +23,52 @@
 
 ---
 
-## Halbzeit-Check 24.06 (Mittwoch, nach Tag 2 der 4 Arbeitstage)
+## 2026-06-26 (Freitag, vorgezogene Session vor Halbzeit-Check 24.06 ueberholt)
 
-> Reminder vom SM: an diesem Tag explizit prüfen, wo der Critical Path steht. Wenn CRY-4, CRY-3, SES-3, SES-2 nicht alle Done sind: Scope-Cut-Entscheidung sofort. SES-4, QUA-4, QUA-5 nach Sprint 4 als Polish verschieben. Falls SES-1 nicht Done: APP-2 (Home-Screen) als reduzierbar markieren.
+**Gestern fertig (19.06 Block-Session-Ende):** Sprint-3-Foundation done (8 Stories: CRY-4/CRY-3/CRY-7/SES-3/SES-2/SES-1/SES-4/CRY-6). DCH-Block geplant aber zeitlich nicht mehr geschafft.
+
+**Heute fertig (26.06 Session):** DCH-Block fast komplett. DCH-1 AES-GCM-Wrapper plus `aead_random_nonce` Helper, DCH-2 FastAPI-Dependency `authenticated_session` mit Wire-Format-Konformer Header-Parsing/Decrypt/JSON-Parse-Logik plus NonceTracker-Hook fuer DCH-4, DCH-4 RedisNonceTracker mit atomarem SET NX EX plus Reihenfolge-Refactor der DCH-2-Dependency (Race-Condition aus PQC-51 geschlossen). docs/wire_format.md zweimal aktualisiert (v0.3 fuer DCH-2 Sec 5.4, v0.4 fuer DCH-4 Sec 5.5 Replay-Schutz + Trade-Off-Tabelle). NFR-Sec-2 ist mit DCH-4 erfuellt.
+
+**Heute geplant (Rest, falls Energie):** PQC-52 DCH-3 `/api/profile` als letzter Server-Block, dann waere der Server-Pfad fuer Sprint-Goal-Demo D-008 funktional komplett.
+
+**Blocker / offene Fragen:** Edit-Tool-Truncation hat erneut zwei Mal zugeschlagen (F-108 main.py + wire_format.md), beide via Python-Patch-Script + git-show-Restore gefixt. Memory verschaerft auf Markdown-Files explizit. Heredoc-Default-Strategie hat alle weiteren Truncations vermieden.
+
+**Arbeitszeit:** 2h 10min reine Story-Arbeit (3 Stories: 45+40+45 Minuten). Plus ~30 Minuten Workflow-Overhead (Hotfix-Recoveries, Memory-Updates, Closing-Reviews). Reale Session-Dauer ~2.5h.
+
+---
+
+## 2026-06-28 (Sonntag, kurze Catch-up-Session in den Ferien)
+
+**Gestern fertig (26.06):** DCH-Foundation komplett ausser DCH-3 (DCH-1 + DCH-2 + DCH-4). NFR-Sec-2 erfuellt. wire_format.md v0.4 mit Replay-Schutz-Sec 5.5.
+
+**Heute fertig (28.06 Catch-up):** PQC-52 DCH-3 `/api/profile` als letzter Server-Block. Geschuetzter Endpoint mit Encrypted-Channel-Roundtrip (Decrypt-via-DCH-2-Dependency, UserRepository-Lookup, Response-Encryption mit fresh CSPRNG-Nonce + Tracker-Eintrag). wire_format.md v0.5 mit Sec 5.3 final (F-094 closed). Plus Mini-Demo D-008: 8-Schritt End-to-End-Roundtrip-Script in `server/scripts/demo_d008.py` plus Doku-File. Demo zeigt Login -> ML-KEM-Handshake -> HKDF -> Encrypted /api/profile -> Decrypt-Response -> Replay-Test 400. Lauft im Docker-Container, Mentor-Material-Quelle.
+
+**Heute geplant (Rest, falls Energie):** APP-Stories (PQC-58 APP-5 SessionContext, dann ggf. PQC-59 APP-6 secureClient.ts). Wenn 28.06 nicht reicht, naechste Session.
+
+**Blocker / offene Fragen:** Demo-Run hatte zwei Tooling-Stolpersteine: Dockerfile kopierte `scripts/` + `dependencies/` nicht (Hotfix-Commit df2d0fb), Git-Bash auf Windows konvertiert UNIX-Pfade (`/app/...` -> `C:/Program Files/...`) - drei Workarounds (Doppelslash, MSYS_NO_PATHCONV, relativer Pfad) in der Demo-Doku.
+
+**Arbeitszeit:** 30 min reine Story-Arbeit fuer PQC-52, plus ~20 min fuer Demo-Script + Doku + Dockerfile-Fix. Reale Session-Dauer ~1h. In den Ferien hatte ich weniger Zeit als geplant, daher diese kuerzere Session.
+
+---
+
+## Sprint-Ende-Notiz 28.06.2026 (Sprint-3-Closure)
+
+**Sprint-3-Ergebnis:** 12 von 18 Stories Done (66% von 79 SP, also 52 SP geliefert). Server-Pfad vollstaendig (PQ-Session plus Data-Channel plus geschuetzter /api/profile-Endpoint plus D-008 Mini-Demo). Mobile-Pfad nicht angegangen (4 APP-Stories offen), Integration-Tests nicht angegangen (QUA-4 plus QUA-5 offen).
+
+**Ferien-Kontext (Transparenz):** Ich war in den Ferien vor dem Sprint-Ende und habe mir nicht so viel Zeit fuer das Schulprojekt genommen wie urspruenglich geplant. Das ist meine eigene Verantwortung, nicht externe Belastung wie in Sprint 2. Lesson fuer die naechste Projekt-Planung: Ferien als echte Ferien einplanen, ohne Projektarbeit. Die Projekt-Arbeitszeit muss rund um die Ferien-Phasen geplant werden, nicht in sie hinein.
+
+**Carry-Over nach Sprint 4 (entschieden im Sprint-Closure):**
+
+| Story | T-Shirt | SP | Begruendung |
+|---|---|---|---|
+| PQC-58 APP-5 | S | 2 | SessionContext, Voraussetzung fuer APP-6 |
+| PQC-59 APP-6 | M | 5 | secureClient.ts, Voraussetzung fuer APP-3 |
+| PQC-55 APP-2 | S | 2 | Home-Screen mit Logout |
+| PQC-56 APP-3 | M | 5 | Profile-Screen mit /api/profile-Aufruf, Sprint-Goal-Mobile-Demo |
+| PQC-66 QUA-4 | M | 5 | Integration-Tests Broker-Flow |
+| PQC-67 QUA-5 | L | 8 | End-to-End-Integration-Test |
+
+Total Carry-Over: **27 SP in 6 Stories**. Sprint 4 wird damit zum Hybrid-Sprint (Carry-Over plus Doku-Stories), R-S04 (Doku-Zeit Sprint 4 zu kurz) muss aggressiv beobachtet werden.
 
 ---
 
@@ -49,10 +92,10 @@
 | PQC-48 SES-3 | Done | SessionService Redis, API in PQC-46 erweitert (F-101) |
 | PQC-47 SES-2 | Done | derive_session_key + F-098 Cross-Validation-Vector |
 | PQC-46 SES-1 | Done | POST /session/init, 12 Tests, F-101+F-102 in-Story-resolved |
-| PQC-50 DCH-1 | | |
-| PQC-51 DCH-2 | | |
-| PQC-53 DCH-4 | | |
-| PQC-52 DCH-3 | | |
+| PQC-50 DCH-1 | Done | AES-GCM-Wrapper plus aead_random_nonce-Helper, 4 dezidierte Server-Tests plus 2 App-Tests |
+| PQC-51 DCH-2 | Done | FastAPI-Dependency authenticated_session, 13 Tests, Wire-Format-Spec v0.3 |
+| PQC-53 DCH-4 | Done | RedisNonceTracker atomar SET NX EX, eigene DB=4, Race-Condition aus DCH-2 mitgeschlossen, Wire-Format-Spec v0.4 mit Trade-Off-Tabelle |
+| PQC-52 DCH-3 | Done | POST /api/profile mit Depends(authenticated_session), Response-Encryption fresh CSPRNG-Nonce + Tracker-Eintrag, wire_format.md v0.5 (F-094 closed), Mini-Demo D-008 8-Schritte |
 | PQC-26 CRY-6 | Done | App-Side @noble-Module + Jest-Setup + F-098 resolved, F-106 Hotfix |
 | PQC-58 APP-5 | | |
 | PQC-59 APP-6 | | |
@@ -81,10 +124,10 @@
 | PQC-48 SES-3 | M | 5 | 7.0 | 0.5 | 14x | Pattern aus OidcStateService |
 | PQC-47 SES-2 | S | 2 | 3.0 | 0.5 | 6x | Helper plus Cross-Validation-Vector |
 | PQC-46 SES-1 | L | 8 | 15.0 | 0.67 | 22x | Router + Audit-Roundtrip + 2 in-Story-Findings-Fixes |
-| PQC-50 DCH-1 | S | 2 | 3.0 |  |  |  |
-| PQC-51 DCH-2 | M | 5 | 7.0 |  |  |  |
-| PQC-53 DCH-4 | M | 5 | 7.0 |  |  |  |
-| PQC-52 DCH-3 | M | 5 | 7.0 |  |  |  |
+| PQC-50 DCH-1 | S | 2 | 3.0 | 0.75 | 4x | Symmetrie-Fix Server aead_random_nonce + 4 DCH-1-Tests Server + 2 App |
+| PQC-51 DCH-2 | M | 5 | 7.0 | 0.67 | 10.5x | Dependency-Pattern, 13 Tests, F-108 Hotfix main.py + wire_format.md, F-109 in-Story resolved |
+| PQC-53 DCH-4 | M | 5 | 7.0 | 0.75 | 9.3x | RedisNonceTracker plus DCH-2-Reihenfolge-Refactor, Race-Condition geschlossen, 9 neue Tests |
+| PQC-52 DCH-3 | M | 5 | 7.0 | 0.5 | 14x | /api/profile-Endpoint, 7 Tests, Hook von DCH-2 hat 80% Vorarbeit geliefert, plus Mini-Demo D-008 |
 | PQC-26 CRY-6 | M | 5 | 7.0 | 1.25 | 5.6x | App-Side 7 Module + 6 Tests + Jest-Setup + F-106 Hotfix |
 | PQC-58 APP-5 | S | 2 | 3.0 |  |  |  |
 | PQC-59 APP-6 | M | 5 | 7.0 |  |  |  |
@@ -94,10 +137,12 @@
 | PQC-66 QUA-4 (High) | M | 5 | 7.0 |  |  |  |
 | PQC-67 QUA-5 (High) | L | 8 | 15.0 |  |  |  |
 
-**Sprint-Aggregat (Zwischenstand nach 18./19.06 Block-Session):**
+**Sprint-Aggregat (Zwischenstand nach 28.06 Catch-up-Session):**
 
-- Done in Sprint 3 bisher: 8 Stories, 35 SP (44% von 79 SP geplant).
-- Tatsaechliche Story-Zeit: ~4.67h fuer 52h Schaetzung = aggregierter Multiplier ~11.1x.
-- Hypothese-Check: vor Sprint-Start war 5x bis 8x erwartet, real liegt bei 11x dank Pattern-Replikation aus Sprint 1+2 + AI-Bundle-Effekt im Block-Mode.
-- Bemerkung: zusaetzliche Zeit fuer Workflow-Roundtrips (Audits, Hotfixes, Disaster-Recoveries) ist NICHT in Story-Zeit eingerechnet. Reale Session-Dauer war ~6-7h inklusive.
-- Wird beim Halbzeit-Check 24.06 final aktualisiert.
+- Done in Sprint 3 bisher: 12 Stories, 52 SP (66% von 79 SP geplant).
+- Tatsaechliche Story-Zeit: ~7.34h fuer 76h Schaetzung = aggregierter Multiplier ~10.4x.
+- Hypothese-Check: vor Sprint-Start war 5x bis 8x erwartet, real liegt bei ~10x weiter ueber dem oberen Limit. Hook-First-Pattern besonders sichtbar bei PQC-52 (14x): DCH-2-Dependency hat fast die ganze Arbeit gemacht.
+- Bemerkung: Workflow-Overhead (Audits, Hotfixes, Edit-Truncation-Recoveries) NICHT in Story-Zeit. Reale Session-Dauer 28.06 war ~1h inklusive (kurze Catch-up-Session in den Ferien).
+- **DCH-Block komplett** (DCH-1 + DCH-2 + DCH-3 + DCH-4). **Server-Pfad fuer Sprint-Goal D-008 funktional komplett**. Mini-Demo D-008 ist live (`server/scripts/demo_d008.py` im Container ausfuehrbar).
+- Restscope: APP-Stories (PQC-58/59/55/56) fuer Mobile-Seite. Defer-Kandidaten QUA-4/QUA-5 noch offen.
+- Wird beim Halbzeit-Check 24.06 ggf. nochmal aktualisiert (Halbzeit-Datum ist durch die vorgezogene Session ueberholt).
