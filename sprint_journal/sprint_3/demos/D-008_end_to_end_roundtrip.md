@@ -7,7 +7,15 @@
 
 ## Was wird demonstriert
 
-End-to-End-Pipeline ueber den vollstaendigen Server-Pfad in 8 Schritten:
+End-to-End-Pipeline ueber den vollstaendigen Server-Pfad **mit beiden
+PQ-Schichten gleichzeitig**:
+
+- **Transport-Layer-PQ:** X25519MLKEM768 im TLS-Handshake (Sprint-2
+  PQC-43/44/45, nginx mit oqs-provider)
+- **Application-Layer-PQ:** ML-KEM-768 fuer Session-Handshake +
+  AES-256-GCM-Channel (Sprint-3 DCH-Block)
+
+8 Schritte:
 
 1. **Login -> Broker-Token** (Sprint 1 AUT-3 + TOK-1, ML-DSA-65 signiert)
 2. **ML-KEM-768 Keypair Client-Side** (liboqs-python)
@@ -66,23 +74,31 @@ Aus Host-Sicht (Demo extern, z.B. lokales liboqs):
 | nginx HTTP | `http://localhost:8080` |
 | nginx HTTPS | `https://localhost:8443` |
 
-**Default** ist `http://localhost:8000` (Container-intern, FastAPI direkt).
-Damit ist die Demo out-of-the-box lauffaehig. Der TLS-Layer (X25519MLKEM768)
-ist Sprint-2 PQC-43/44/45 und kein Teil des D-008-Scope, weil D-008
-die **App-Layer-PQ** demonstriert (ML-KEM-768-Handshake + AES-256-GCM-Channel).
+**Default** ist `https://nginx:443` (Container-intern, durch nginx mit
+X25519MLKEM768-TLS). Damit zeigt die Demo BEIDE PQ-Schichten:
+Transport-Layer-PQ (TLS-Handshake) und Application-Layer-PQ (ML-KEM +
+AES-GCM-Channel).
 
-**Override** wenn du den nginx-Hop testen willst:
+**TLS-Verify:** `verify=False` weil das Test-Cert self-signed ist (kein
+echter CA-Trust). In Production wuerde das Cert von einer echten CA
+kommen. Fuer Demo akzeptabel, weil der App-Layer einen eigenen
+Authentication-Mechanismus hat (Broker-Token + Session-Key + AEAD-Tag),
+TLS dient hier als reine Transport-Layer-Demo.
+
+**Overrides** fuer alternative Pfade:
 
 ```bash
-# HTTP via nginx-Proxy (zeigt Reverse-Proxy-Funktionalitaet)
+# FastAPI direkt (bypasst nginx, schneller fuer Iterations-Tests)
+docker compose exec -e DEMO_BASE_URL=http://localhost:8000 \
+    auth-service python scripts/demo_d008.py
+
+# nginx HTTP (Reverse-Proxy, kein TLS)
 docker compose exec -e DEMO_BASE_URL=http://nginx:80 \
     auth-service python scripts/demo_d008.py
 
-# HTTPS via nginx mit X25519MLKEM768 (App-Layer-PQ + Transport-Layer-PQ)
-docker compose exec -e DEMO_BASE_URL=https://nginx:443 \
+# TLS-Verify einschalten (z.B. wenn Cert ins Truststore importiert)
+docker compose exec -e DEMO_VERIFY_TLS=true \
     auth-service python scripts/demo_d008.py
-# (Hinweis: aktuell wuerde Demo TLS-Verify nicht ausschalten - May-Polish
-#  fuer eine spaetere Variante mit verify=False oder echtem CA-Trust.)
 ```
 
 ## Ausfuehrung
@@ -125,9 +141,11 @@ docker compose exec -e DEMO_EMAIL=alice@example.com \
 ## Erwarteter Output (gekuerzt)
 
 ```
-Demo D-008: End-to-End-Roundtrip gegen http://localhost:8080
+Demo D-008: End-to-End-Roundtrip gegen https://nginx:443
 Demo-User: demo@example.com
-KEM: ML-KEM-768, AEAD: AES-256-GCM, KDF: HKDF-SHA256
+App-Layer:       ML-KEM-768 + HKDF-SHA256 + AES-256-GCM (Sprint-3 DCH-Block)
+Transport-Layer: X25519MLKEM768 (nginx + oqs-provider)
+TLS-Verify: False (self-signed Test-Cert in Dev)
 
 === Schritt 1: Login -> Broker-Token ===
 Token preview: eyJhbGciOiJNTC1EU0EtNjUi... (3245 chars)

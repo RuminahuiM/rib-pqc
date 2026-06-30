@@ -60,14 +60,25 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-# Default: FastAPI direkt im selben Container (port 8000). Aus Sicht des
-# auth-service-Containers ist `localhost:8000` der FastAPI-Server selbst.
-# Wer den nginx-Hop mit X25519MLKEM768-TLS testen will, ueberschreibt
-# `DEMO_BASE_URL=http://nginx:80` (HTTP via Reverse-Proxy) oder
-# `DEMO_BASE_URL=https://nginx:443` (TLS, braucht verify=False oder
-# Cert-Trust). Der TLS-Layer ist Sprint-2 PQC-43/44/45 und nicht Teil
-# des D-008-Scope (App-Layer-PQ via ML-KEM + AES-GCM).
-BASE_URL = os.environ.get("DEMO_BASE_URL", "http://localhost:8000")
+# Default: nginx HTTPS-Endpoint (X25519MLKEM768 Transport-Layer-PQ +
+# Application-Layer-PQ via ML-KEM + AES-GCM). Aus Sicht des
+# auth-service-Containers ist `https://nginx:443` der nginx-Service.
+# Das demonstriert BEIDE PQ-Schichten gleichzeitig (Sprint-2 TLS-Layer
+# PQC-43/44/45 + Sprint-3 App-Layer DCH-Block) und ist das realistischste
+# Demo-Material.
+#
+# Overrides:
+#   DEMO_BASE_URL=http://localhost:8000  -> FastAPI direkt, bypasst nginx
+#   DEMO_BASE_URL=http://nginx:80        -> nginx HTTP, kein TLS
+#   DEMO_BASE_URL=https://localhost:8443 -> nginx HTTPS aus Host-Sicht
+BASE_URL = os.environ.get("DEMO_BASE_URL", "https://nginx:443")
+
+# Self-signed Test-Cert in der Dev-Umgebung. In Production muss verify
+# gegen einen echten CA-Trust laufen. Fuer die Demo ist verify=False
+# bewusst akzeptiert - der App-Layer hat seinen eigenen Authentication-
+# Mechanismus (Token + Session-Key + AEAD-Tag), TLS dient hier nur als
+# Transport-Layer-Demo, nicht als App-Layer-Trust-Anker.
+VERIFY_TLS = os.environ.get("DEMO_VERIFY_TLS", "false").lower() in {"1", "true", "yes"}
 DEMO_EMAIL = os.environ.get("DEMO_EMAIL", "demo@example.com")
 DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD", "demo-passwort-12345")
 KEM_ALG = "ML-KEM-768"
@@ -96,9 +107,11 @@ def _section(num: int, title: str) -> None:
 def main() -> int:
     print(f"Demo D-008: End-to-End-Roundtrip gegen {BASE_URL}")
     print(f"Demo-User: {DEMO_EMAIL}")
-    print(f"KEM: {KEM_ALG}, AEAD: AES-256-GCM, KDF: HKDF-SHA256")
+    print(f"App-Layer:       ML-KEM-768 + HKDF-SHA256 + AES-256-GCM (Sprint-3 DCH-Block)")
+    print(f"Transport-Layer: {'X25519MLKEM768 (nginx + oqs-provider)' if BASE_URL.startswith('https') else 'plain (kein TLS)'}")
+    print(f"TLS-Verify: {VERIFY_TLS} (self-signed Test-Cert in Dev)")
 
-    with httpx.Client(base_url=BASE_URL, timeout=30) as client:
+    with httpx.Client(base_url=BASE_URL, timeout=30, verify=VERIFY_TLS) as client:
         # 1. Login -> Broker-Token
         _section(1, "Login -> Broker-Token")
         resp = client.post(
