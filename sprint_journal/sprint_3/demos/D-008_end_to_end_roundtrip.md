@@ -23,13 +23,26 @@ End-to-End-Pipeline ueber den vollstaendigen Server-Pfad in 8 Schritten:
 ## Voraussetzungen
 
 - Server lauft (docker compose up).
-- Demo-User existiert. Anlegen mit:
+- Demo-User existiert. Admin-CLI liest Passwort via getpass (interaktiv)
+  oder `--password-stdin` (Pipe). Sprint-1-Security-Design: kein Password
+  im argv / ps / shell-history.
+
+  **Option A (interaktiv, Prompt erscheint):**
 
   ```bash
   cd infra
   docker compose exec auth-service python -m admin create-user \
-      --email demo@example.com \
-      --password demo-passwort-12345
+      --email demo@example.com
+  # Prompt: 'Password: ' -> demo-passwort-12345
+  ```
+
+  **Option B (Pipe-friendly, `-T` deaktiviert TTY):**
+
+  ```bash
+  cd infra
+  echo "demo-passwort-12345" | docker compose exec -T auth-service \
+      python -m admin create-user \
+      --email demo@example.com --password-stdin
   ```
 
 - liboqs (oqs Python-Bindings) im Container vorhanden (Sprint-1 INF-4).
