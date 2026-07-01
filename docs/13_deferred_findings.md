@@ -962,3 +962,31 @@ Geschuetzter API-Endpoint `/api/profile` als `POST` implementiert. Authenticatio
 ### Historie-Update 30.06.2026 (PQC-52)
 
 Sprint-3 Story 12 von 18 Done. **DCH-Block komplett: DCH-1 + DCH-2 + DCH-3 + DCH-4 alle Done.** **Server-Pfad fuer Sprint-Goal D-008 funktional komplett**: Token-Auth + KEM-Encaps + HKDF + SessionStore + Replay-Schutz + verschluesseltes /api/profile. 52 SP von 79 SP Done (66%). Restscope: APP-Stories (APP-2/3/5/6) fuer Mobile-Seite. **F-100-Trigger (Demo nach DCH-3) erreicht** - Mini-Demo End-to-End-Roundtrip empfehlenswert.
+
+## Findings aus Sprint-4 QUA-Trio + Demo-D-008 Re-Fix am 01.07.2026
+
+Sprint-4-QUA-Block (PQC-68/69/70) plus Demo-D-008-Reproduktion nach Halbzeit haben 6 neue Findings gebracht. Vier davon in-story resolved, zwei bleiben offen (nicht-funktional-blockierend).
+
+### Tier-2 (Polish/Tracking)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-136 | `bench_pq_session.py` nutzte fakeredis in-process statt echtem Redis. Convenience-Shortcut aus initialem Bundle-Build. Verwaessert Prod-Realism der Session-Init-Latenz-Messung (kein Netzwerk-Roundtrip fuer SETEX/GET). User-Feedback in Chat 30.06.2026: "macht das wirklich sinn?" | Should | in-Story PQC-68 | resolved (PQC-68 Refactor: `redis.asyncio.from_url("redis://redis:6379/5")` + FLUSHDB pro Bench-Start). |
+| F-137 | `logging.getLogger("rib_pqc").setLevel(WARNING)` in `bench_pq_session.py` greift nicht, weil `rib_pqc.*` Logger via structlog konfiguriert sind (eigener Logger-Baum, ignoriert stdlib-Level-Overrides). Debug-Zeilen erschienen im Bench-Run-Stdout, Log-I/O flossen in die Latenz-Messung (Impact vernachlaessigbar, P95 4.769 ms bleibt weit unter 500 ms Target). | May | Post-Sprint | open, tracked in [PQC-85](https://rumidesigns.atlassian.net/browse/PQC-85). Fix vermutlich via `structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING))`. |
+| F-138 | `bench_pq_session.py` hardcoded `("ML-KEM-768", "ML-KEM-1024")` im Bench-Loop. Config-Whitelist hat aktuell nur ML-KEM-768 registriert -> `AlgorithmNotFoundError` bei ML-KEM-1024. | Should | in-Story PQC-68 | resolved (PQC-68 Refactor: dynamischer Lookup via `facade.supported_kem_algorithms()`, gracefully-skip mit info-Logging fuer nicht-registrierte Varianten). |
+| F-139 | `infra/nginx/nginx.conf` setzte `proxy_set_header Host $host` und reichte Client-Host (`nginx:443`) 1:1 durch. TrustedHostMiddleware aus PQC-81 SEC-3 hat `nginx` NICHT in der Allowlist, deshalb blocked Backend jeden nginx-vermittelten Request mit `HTTP 400 Invalid host header`. Betroffen: Demo D-008 (voll-pfad via nginx). Sprint-2-Live-Demos (PQC-40 Google-Login) haben das nicht getroffen weil sie via anderen Pfad liefen. | Should | in-Story (Demo-D-008-Debug) | resolved (nginx.conf Fix: `proxy_set_header Host "auth-service:8000"` in beiden server-blocks Port 80 + 443. Client-Host bleibt via `X-Forwarded-Host` verfuegbar falls Backend ihn braucht). Reverse-Proxy-Idiom-konform. |
+| F-140 | `pqc-nginx` Container ist `unhealthy` laut `docker compose ps` obwohl er funktional routet (Demo D-008 lief E2E gruen). Healthcheck-Command im docker-compose.yml matched vermutlich nicht mit dem tatsaechlichen nginx-Health-Endpoint. Kein funktionaler Impact. | May | Sprint-4-Polish oder mit F-051 (Cert-PKI-Setup) buendeln | open. Fix-Kandidat: Healthcheck auf `curl -k -f https://localhost:443/pqc-test` umstellen (der Endpoint existiert in nginx.conf Z.85). |
+| F-141 | `server/scripts/demo_d008.py` las `resp.json()["access_token"]` aus dem Login-Response, aber der Server liefert `broker_token` (siehe `routers/auth.py` LoginResponse). Key-Drift von einem fruehen OAuth-Style-Naming-Versuch. Demo failed mit `KeyError: 'access_token'` bei Schritt 1. | Should | in-Story (Demo-D-008-Debug) | resolved (demo_d008.py Z.124 Fix: `access_token` -> `broker_token`). |
+
+### Historie-Update 01.07.2026 (Sprint-4 Halbzeit + Demo-D-008 Voll-Pfad-Fix)
+
+Sprint-4 hat 10 von ~14 geplanten Stories done (Carry-Over Mobile + APP-2 + TOK-Block + QUA-Trio). Nach Halbzeit-Check heute wurde Demo D-008 erneut probiert und funktionierte nicht (`Invalid host header` -> nginx-Reverse-Proxy-Design + `KeyError access_token` -> Skript-Drift). Beide gefixt, Demo E2E gruen:
+
+- Login via nginx:443 (X25519MLKEM768 TLS-Layer)
+- ML-KEM-768 Session-Init + HKDF (Sprint-3 SES-Block)
+- AES-256-GCM /api/profile (DCH-Block)
+- Replay-Test korrekt geblockt (DCH-4 nonce-tracking)
+
+Damit ist der Sprint-Goal-Anteil "End-to-End PQ-Session inkl. Voll-Pfad-Transport-Layer" **erneut verifiziert** nach Sprint-2/3-Aenderungen. F-140 bleibt als kosmetischer Healthcheck-Fix offen.
+
+**Post-Sprint-Cleanup [PQC-85](https://rumidesigns.atlassian.net/browse/PQC-85)** angelegt fuer systematischen Bench-Skript-Review + structlog-Log-Level-Fix (F-137).

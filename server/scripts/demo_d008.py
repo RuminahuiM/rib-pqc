@@ -121,7 +121,7 @@ def main() -> int:
         if resp.status_code != 200:
             print(f"FAIL Login: HTTP {resp.status_code} {resp.text}")
             return 1
-        token = resp.json()["access_token"]
+        token = resp.json()["broker_token"]
         print(f"Token preview: {token[:40]}... ({len(token)} chars)")
         print("Status: OK")
 
