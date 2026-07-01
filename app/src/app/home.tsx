@@ -1,9 +1,15 @@
 /**
- * Home-Screen (PQC-20 SKL-2, Logout in PQC-57 APP-4 angeschlossen).
+ * Home-Screen (PQC-20 SKL-2, Logout-Anschluss PQC-57 APP-4, in PQC-55 APP-2
+ * abgeschlossen).
  *
- * Sprint-1: Skeleton mit Logout-Button (ruft AuthContext.logout, der den
- * Token aus secure-store loescht und State leert) und Profile-Navigation.
- * Echter Home-Content (Token-Status, Test-API-Calls) kommt in PQC-55 (APP-2).
+ * Drei AC aus PQC-55:
+ * - Begruessungs-Text (Welcome back + User-Info aus useAuth)
+ * - Logout-Button (AuthContext.logout loescht Token + secure-store +
+ *   router.replace zu /login)
+ * - Link zum Profile-Screen (router.push("/profile"))
+ *
+ * Optional erweiterbar in Sprint-4-Polish (F-123) um Session-Status-Anzeige
+ * + Demo-Banner, aktuell pure Sprint-3-Goal-Erfuellung.
  */
 
 import { router } from "expo-router";
