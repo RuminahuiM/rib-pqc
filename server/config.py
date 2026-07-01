@@ -69,13 +69,48 @@ class KemConfig(BaseModel):
     default: str = Field(default="ML-KEM-768")
 
 
+class KeyEntry(BaseModel):
+    """Pfade fuer ein einzelnes Signing-Keypair (PQC-34 TOK-3)."""
+
+    private_key_path: str
+    public_key_path: str
+
+
 class SignatureConfig(BaseModel):
     supported: list[str] = Field(default_factory=lambda: ["ML-DSA-65"])
     default: str = Field(default="ML-DSA-65")
+    # Single-Key-Felder (Sprint 1, Backward-Compat).
     private_key_path: str = Field(default="/data/keys/auth_signing_key.bin")
     public_key_path: str = Field(default="/data/keys/auth_signing_key.pub")
     allow_autogen_in_dev: bool = Field(default=False)
     signing_kid: str = Field(default="auth-signing-key-v1")
+    # Multi-Key-Felder (PQC-34 TOK-3): wenn ``keys`` gesetzt sind, wird
+    # daraus ``verifying_keys_by_kid`` gebaut; sonst Fallback auf das
+    # Single-Key-Setup oben.
+    # ``active_kid`` ist der Schluessel fuer Token-Signierung. Wenn None,
+    # wird ``signing_kid`` genutzt (Backward-Compat).
+    active_kid: str | None = Field(default=None)
+    keys: dict[str, KeyEntry] = Field(default_factory=dict)
+
+    def get_active_kid(self) -> str:
+        """Returns active_kid oder Fallback auf signing_kid."""
+        return self.active_kid or self.signing_kid
+
+    def get_effective_keys(self) -> dict[str, KeyEntry]:
+        """Returns Multi-Key-Dict, mit Backwards-Compat-Fallback.
+
+        Wenn ``keys`` leer ist, wird ein Default-Eintrag aus
+        ``signing_kid`` + ``private_key_path`` + ``public_key_path``
+        konstruiert (Sprint-1-Behavior beibehalten).
+        """
+        if self.keys:
+            return self.keys
+        return {
+            self.signing_kid: KeyEntry(
+                private_key_path=self.private_key_path,
+                public_key_path=self.public_key_path,
+            ),
+        }
 
 
 class CryptoConfig(BaseModel):

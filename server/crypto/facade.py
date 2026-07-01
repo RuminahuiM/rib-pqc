@@ -267,3 +267,10 @@ class CryptoFacade:
     def is_kem_supported(self, alg: str) -> bool:
         """Prueft ob ``alg`` als KEM in der Registry steht (SES-1, SES-4)."""
         return alg in self._registry.supported_kem()
+
+    def verifying_keys(self) -> dict[str, bytes]:
+        """Kopie des verifying_keys_by_kid-Dicts (Public-Accessor).
+
+        Story: PQC-35 TOK-4 (JWKS-Endpoint nutzt das).
+        """
+        return dict(self._verifying_keys_by_kid)

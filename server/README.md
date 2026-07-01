@@ -192,3 +192,94 @@ Bei Secret-Exposition (z.B. accidentale Commit, Chat-Upload):
 Alte Secret-Strings sind invalid sobald sie geloescht sind. `.env` muss
 entsprechend nachgepflegt werden, Container neu starten damit Auth-Service
 die neuen Werte laedt.
+
+
+## Signing-Key-Rotation (PQC-34 TOK-3)
+
+Der Auth-Service unterstuetzt **Multi-Key-Setup**: ein `active_kid` signiert
+neue Tokens, mehrere Public-Keys werden parallel fuer Verifikation
+vorgehalten (Schluessel-Rollover ohne Token-Invalidierung).
+
+### Config-Schema
+
+```yaml
+crypto:
+  signature:
+    active_kid: key-v2          # signiert neue Tokens
+    keys:
+      key-v1:                   # alter Key, nur fuer Verify
+        private_key_path: /data/keys/key-v1.bin
+        public_key_path:  /data/keys/key-v1.pub
+      key-v2:                   # neuer Key, aktiv
+        private_key_path: /data/keys/key-v2.bin
+        public_key_path:  /data/keys/key-v2.pub
+```
+
+Wenn `keys` leer oder fehlt: Backwards-Compat-Fallback auf das
+Single-Key-Setup (`signing_kid` + `private_key_path` + `public_key_path`).
+
+### Rotation via Admin-CLI
+
+Neuer Key generieren + Config updaten:
+
+```bash
+docker compose exec auth-service python -m admin rotate-signing-key \
+    --new-kid key-v3
+```
+
+Optional: `--keys-dir <pfad>` (Default `/data/keys`), `--config-path <pfad>`
+(Default aus RIB_CONFIG_FILE).
+
+Was passiert:
+
+1. Generiert frisches ML-DSA-65 Keypair.
+2. Schreibt `/data/keys/{new-kid}.bin` + `.pub`.
+3. Updated Config-YAML: `active_kid` = new-kid, neuer Eintrag in `keys`.
+4. Alte Keys bleiben in `keys` (Multi-Key-Verifikation alter Tokens).
+
+Nach der Rotation: Container neu starten damit die neue Config geladen wird.
+
+### Alte Keys entfernen
+
+Manuell: aus `keys`-Dict in Config-YAML loeschen wenn alle Tokens mit
+diesem kid abgelaufen sind (Token-TTL siehe `token.ttl_seconds`,
+Default 3600s). Key-File auf der Disk kann danach geloescht werden.
+
+
+## JWKS-Endpoint (PQC-35 TOK-4)
+
+Der Server publiziert die ML-DSA-Public-Keys aller registrierten kids unter:
+
+```
+GET /auth/.well-known/jwks.json
+```
+
+Response-Format folgt RFC 7517 (JSON Web Key Set):
+
+```json
+{
+  "keys": [
+    {
+      "kty": "AKP",
+      "alg": "ML-DSA-65",
+      "kid": "auth-signing-key-v1",
+      "use": "sig",
+      "x": "<base64url(public-key-bytes-1952)>"
+    }
+  ]
+}
+```
+
+**Pre-Standard-Warnung:** `alg=ML-DSA-65` und `kty=AKP` sind aktuell KEINE
+offiziellen IANA-Eintraege. Die Standardisierung laeuft in:
+
+- `draft-ietf-cose-dilithium` (COSE Algorithms for ML-DSA)
+- `draft-ietf-jose-pqc-akp` (JOSE Algorithm Key Pair fuer PQ-Algorithmen)
+
+Konsumenten muessen `ML-DSA-65` explizit unterstuetzen und das raw-public-key-
+Format im `x`-Feld lesen koennen. Falls die finale Standardisierung
+ein anderes JWK-Layout vorschreibt, muss der Endpoint angepasst werden.
+
+Cache-Control: `public, max-age=3600` (1h). Bei Token-Verify-Failure
+sollten Konsumenten ein Force-Refresh machen (Pattern wie unser
+OidcJwksService aus Sprint 2).

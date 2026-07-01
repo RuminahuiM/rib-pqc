@@ -45,7 +45,7 @@ from middleware import (
     SecurityHeadersMiddleware,
     register_rate_limit,
 )
-from routers import api, auth, auth_federated, dev_test, health, session
+from routers import api, auth, auth_federated, dev_test, health, jwks, session
 from services.id_token_verifier import IdTokenVerifier
 from services.oidc_exchange_service import OidcExchangeService
 from services.oidc_jwks_service import OidcJwksService
@@ -173,31 +173,49 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         signature_default=settings.crypto.signature.default,
     )
 
-    # ML-DSA-65 Signing-Key laden oder generieren.
+    # ML-DSA-65 Signing-Keys laden oder generieren (PQC-34 TOK-3 Multi-Key).
     sig_alg = settings.crypto.signature.default
-    public_key, secret_key = _ensure_signing_keypair(
-        registry=registry,
-        algorithm=sig_alg,
-        private_key_path=Path(settings.crypto.signature.private_key_path),
-        public_key_path=Path(settings.crypto.signature.public_key_path),
-        environment=settings.environment,
-        allow_autogen_in_dev=settings.crypto.signature.allow_autogen_in_dev,
-    )
+    effective_keys = settings.crypto.signature.get_effective_keys()
+    active_kid = settings.crypto.signature.get_active_kid()
+    if active_kid not in effective_keys:
+        msg = (
+            f"active_kid '{active_kid}' fehlt im keys-Dict "
+            f"(verfuegbar: {list(effective_keys)}). Pruefe "
+            f"crypto.signature.active_kid + keys-Mapping in config.yaml."
+        )
+        raise RuntimeError(msg)
+    verifying_keys_by_kid: dict[str, bytes] = {}
+    secret_key: bytes | None = None
+    for kid, key_entry in effective_keys.items():
+        pub, priv = _ensure_signing_keypair(
+            registry=registry,
+            algorithm=sig_alg,
+            private_key_path=Path(key_entry.private_key_path),
+            public_key_path=Path(key_entry.public_key_path),
+            environment=settings.environment,
+            allow_autogen_in_dev=settings.crypto.signature.allow_autogen_in_dev,
+        )
+        verifying_keys_by_kid[kid] = pub
+        if kid == active_kid:
+            secret_key = priv
+    if secret_key is None:
+        msg = f"secret_key fuer active_kid '{active_kid}' nicht geladen"
+        raise RuntimeError(msg)
+    public_key = verifying_keys_by_kid[active_kid]
 
-    # CryptoFacade als zentraler Einstiegspunkt fuer alle Crypto-Operationen
-    # in nachfolgenden Stories (TOK-1 Broker-Token, AUT-3 Login, etc.).
+    # CryptoFacade als zentraler Einstiegspunkt fuer alle Crypto-Operationen.
     facade = CryptoFacade(
         registry=registry,
         default_signature_alg=settings.crypto.signature.default,
-        signing_kid=settings.crypto.signature.signing_kid,
+        signing_kid=active_kid,
         signing_secret_key=secret_key,
-        verifying_keys_by_kid={settings.crypto.signature.signing_kid: public_key},
+        verifying_keys_by_kid=verifying_keys_by_kid,
     )
     logger.info(
         "crypto.facade.initialized",
         default_signature_alg=settings.crypto.signature.default,
-        signing_kid=settings.crypto.signature.signing_kid,
-        verifying_kids=sorted({settings.crypto.signature.signing_kid}),
+        active_kid=active_kid,
+        verifying_kids=sorted(verifying_keys_by_kid),
     )
 
     # PQC-32 (TOK-1): TokenService als Singleton im App-Lifecycle. Stellt
@@ -398,6 +416,8 @@ def create_app() -> FastAPI:
     # PQC-37 (BRK-2)
     app.include_router(auth_federated.router)
     app.include_router(session.router)
+    # PQC-35 (TOK-4): JWKS-Endpoint /auth/.well-known/jwks.json
+    app.include_router(jwks.router)
     # PQC-52 (DCH-3): geschuetzte /api/profile + zukuenftige Encrypted-Channel-Endpoints
     app.include_router(api.router)
     # PQC-83 (SEC-5) AC-5: Dev-only Rate-Limit-Test-Endpoint
