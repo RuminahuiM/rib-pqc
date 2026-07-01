@@ -1,0 +1,61 @@
+{
+  "bench": "aes_gcm_overhead",
+  "nfr": "NFR-Perf-3",
+  "timestamp_utc": "2026-07-01T13:19:27Z",
+  "environment": {
+    "python_version": "3.12.13",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "machine": "x86_64",
+    "processor": "n/a"
+  },
+  "warmup_iterations": 100,
+  "measure_iterations": 1000,
+  "nfr_target_ms": 50,
+  "payload_sizes_bytes": [
+    256,
+    1024,
+    10240
+  ],
+  "variants": {
+    "isolated_aead_256B": {
+      "n": 1000,
+      "min_ms": 0.099,
+      "p50_ms": 0.223,
+      "p95_ms": 0.631,
+      "p99_ms": 0.935,
+      "max_ms": 2.691,
+      "mean_ms": 0.298,
+      "stdev_ms": 0.185
+    },
+    "isolated_aead_1024B": {
+      "n": 1000,
+      "min_ms": 0.088,
+      "p50_ms": 0.206,
+      "p95_ms": 0.692,
+      "p99_ms": 1.069,
+      "max_ms": 10.192,
+      "mean_ms": 0.294,
+      "stdev_ms": 0.404
+    },
+    "isolated_aead_10240B": {
+      "n": 1000,
+      "min_ms": 0.112,
+      "p50_ms": 0.223,
+      "p95_ms": 0.783,
+      "p99_ms": 1.171,
+      "max_ms": 2.478,
+      "mean_ms": 0.321,
+      "stdev_ms": 0.235
+    },
+    "e2e_plaintext_health": {
+      "n": 1000,
+      "min_ms": 0.554,
+      "p50_ms": 0.749,
+      "p95_ms": 1.233,
+      "p99_ms": 1.582,
+      "max_ms": 4.398,
+      "mean_ms": 0.83,
+      "stdev_ms": 0.251
+    }
+  }
+}

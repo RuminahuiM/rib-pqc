@@ -1,0 +1,36 @@
+{
+  "bench": "token_verify",
+  "nfr": "NFR-Perf-2",
+  "timestamp_utc": "2026-07-01T13:18:30Z",
+  "environment": {
+    "python_version": "3.12.13",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "machine": "x86_64",
+    "processor": "n/a"
+  },
+  "warmup_iterations": 100,
+  "measure_iterations": 1000,
+  "nfr_target_ms": 10,
+  "variants": {
+    "crypto_only_ml_dsa_65_verify": {
+      "n": 1000,
+      "min_ms": 0.104,
+      "p50_ms": 0.182,
+      "p95_ms": 0.493,
+      "p99_ms": 0.799,
+      "max_ms": 9.985,
+      "mean_ms": 0.263,
+      "stdev_ms": 0.488
+    },
+    "token_service_verify_full": {
+      "n": 1000,
+      "min_ms": 0.389,
+      "p50_ms": 0.537,
+      "p95_ms": 0.795,
+      "p99_ms": 0.988,
+      "max_ms": 1.293,
+      "mean_ms": 0.566,
+      "stdev_ms": 0.116
+    }
+  }
+}

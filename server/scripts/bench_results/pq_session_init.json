@@ -1,0 +1,33 @@
+{
+  "bench": "pq_session_init",
+  "nfr": "NFR-Perf-1",
+  "timestamp_utc": "2026-07-01T13:49:45Z",
+  "environment": {
+    "python_version": "3.12.13",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "machine": "x86_64",
+    "processor": "n/a"
+  },
+  "warmup_iterations": 10,
+  "measure_iterations": 100,
+  "nfr_target_ms": 500,
+  "redis_url": "redis://redis:6379/5",
+  "registered_kem_algorithms": [
+    "ML-KEM-768"
+  ],
+  "skipped_variants": [
+    "ML-KEM-1024"
+  ],
+  "variants": {
+    "ML-KEM-768": {
+      "n": 100,
+      "min_ms": 1.906,
+      "p50_ms": 2.498,
+      "p95_ms": 4.769,
+      "p99_ms": 7.13,
+      "max_ms": 8.679,
+      "mean_ms": 2.865,
+      "stdev_ms": 1.094
+    }
+  }
+}

@@ -78,6 +78,15 @@ services:
       RIB_SQLITE_PATH: /data/auth.sqlite
       RIB_LOG_LEVEL: info
       RIB_ENVIRONMENT: dev
+      # PQC-84 BRK-0 + PQC-36 BRK-1: IdP-Credentials via Pydantic-Settings-Nested.
+      # Compose substituiert aus ../infra/.env (nicht ins Git committet).
+      # Fallback-Values leer, damit compose bei fehlendem .env nicht crashed;
+      # F-058 fail-fast validation im init_idp_registry meldet dann klar was fehlt.
+      RIB_IDP_PROVIDERS__GOOGLE__CLIENT_ID: "${GOOGLE_OAUTH_CLIENT_ID:-}"
+      RIB_IDP_PROVIDERS__GOOGLE__CLIENT_SECRET: "${GOOGLE_OAUTH_CLIENT_SECRET:-}"
+      RIB_IDP_PROVIDERS__MICROSOFT__CLIENT_ID: "${MICROSOFT_OAUTH_CLIENT_ID:-}"
+      RIB_IDP_PROVIDERS__MICROSOFT__CLIENT_SECRET: "${MICROSOFT_OAUTH_CLIENT_SECRET:-}"
+      RIB_IDP_PROVIDERS__MICROSOFT__TENANT_ID: "${MICROSOFT_OAUTH_TENANT_ID:-}"
     depends_on:
       redis:
         condition: service_healthy
