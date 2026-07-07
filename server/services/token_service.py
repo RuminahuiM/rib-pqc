@@ -174,6 +174,11 @@ class TokenService:
         # Lowercase-Set vorberechnen fuer case-insensitive O(1)-Lookup.
         self._allowed_algs_lower: frozenset[str] = frozenset(a.lower() for a in allowed_algs)
         self._allowed_algs_original: list[str] = list(allowed_algs)
+        # Lowercase -> kanonischer Registry-Name. Die CryptoRegistry ist
+        # case-SENSITIVE ("ML-DSA-65"). Damit die case-insensitive Allowlist
+        # (RFC 8725) nicht an der Registry scheitert, wird der Header-alg vor
+        # dem Facade-Call auf den kanonischen Namen normalisiert (F-144).
+        self._alg_canonical: dict[str, str] = {a.lower(): a for a in allowed_algs}
         self._exp_leeway = exp_leeway_seconds
         self._clock: Callable[[], float] = clock or time.time
         self._logger = get_logger("rib_pqc.token")
@@ -377,11 +382,16 @@ class TokenService:
             )
             raise ExpiredTokenError(msg)
 
-        # Schritt 9: AC-2/AC-5 Signature-Verifikation via Facade
+        # Schritt 9: AC-2/AC-5 Signature-Verifikation via Facade.
+        # alg wird auf den kanonischen Allowlist-Namen normalisiert, weil die
+        # CryptoRegistry case-sensitive ist (z.B. Header 'ml-dsa-65' ->
+        # Registry-Name 'ML-DSA-65'). Lookup ist safe: alg_lower hat den
+        # Allowlist-Check in Schritt 4 bereits bestanden.
+        canonical_alg = self._alg_canonical[alg_lower]
         signature = _b64url_decode(signature_b64)
         signing_input = f"{header_b64}.{payload_b64}".encode("ascii")
         try:
-            sig_ok = self._facade.verify(signing_input, signature, alg, kid)
+            sig_ok = self._facade.verify(signing_input, signature, canonical_alg, kid)
         except UnknownKidError as exc:
             msg = f"unknown kid '{kid}'"
             raise InvalidClaimError(msg) from exc

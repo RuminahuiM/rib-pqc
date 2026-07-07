@@ -1,8 +1,14 @@
 # syntax=docker/dockerfile:1.7
-# Auth-Service Dockerfile
-# Stories: PQC-19 (SKL-1), PQC-21 (CRY-1), PQC-25 (CRY-5)
+# Auth-Service Dockerfile - Multi-Stage
+# Stories: PQC-19 (SKL-1), PQC-21 (CRY-1), PQC-25 (CRY-5), PQC-66/67 (QUA-4/5)
 #
-# Single-Stage Build mit uv als Package-Manager (Tech-Stack-Doku 4.4).
+# Multi-Stage-Build mit uv als Package-Manager (Tech-Stack-Doku 4.4).
+# - Stage ``runtime`` (default): Prod-Image mit --no-dev, keine Tests.
+# - Stage ``test`` (extending runtime): fuegt dev-deps + tests fuer
+#   Integration-Test-Runs im Container hinzu. Wird via
+#   `docker compose build auth-service-test` oder
+#   `docker build --target test` gebaut.
+#
 # uv-Binary aus offiziellem Astral-Image kopiert, sodass wir keine
 # zusaetzlichen System-Dependencies pinnen muessen.
 #
@@ -93,3 +99,33 @@ EXPOSE 8000
 # ausgefuehrt (idempotent, no-op wenn schon current). Danach uvicorn-Run via
 # ``python main.py`` (liest Settings.host/port).
 CMD ["sh", "-c", "alembic upgrade head && python main.py"]
+
+
+# ===========================================================================
+# Stage: test - Integration-Test-Runner (PQC-66/67 QUA-4/5)
+# ===========================================================================
+#
+# Baut auf ``runtime`` auf und ergaenzt:
+# - dev-deps (pytest, pytest-asyncio, pytest-cov, respx, fakeredis, ...)
+# - tests/ Verzeichnis
+#
+# Prod-Image bleibt schlank; Test-Image ist explizit fuer QUA-4/5 gedacht.
+# Ausfuehrung via docker compose:
+#     docker compose build auth-service-test
+#     docker compose run --rm auth-service-test pytest tests/ -v
+#
+# Alle liboqs-Layer + prod-Deps sind aus ``runtime`` gecacht, nur die
+# dev-Sync + Tests-Copy laufen neu.
+FROM runtime AS test
+
+USER root
+# WICHTIG: dev-Deps liegen unter [project.optional-dependencies].dev, nicht
+# unter [dependency-groups]. Plain `uv sync` installiert Extras NICHT, darum
+# explizit --extra dev (sonst fehlt pytest im Image -> Container-Start-Fail).
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --extra dev
+COPY tests ./tests
+RUN chown -R app:app /app/tests /opt/venv
+
+USER app
+CMD ["pytest", "tests/", "-v"]

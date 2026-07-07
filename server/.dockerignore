@@ -26,5 +26,6 @@ Thumbs.db
 .env.*
 !.env.example
 
-# Tests werden im Container nicht gebraucht (laufen extern).
-tests
+# Tests bleiben im Build-Kontext, damit der Multi-Stage `test`-Target sie
+# via COPY einschliessen kann (PQC-66/67 QUA-4/5). Der Prod-Stage `runtime`
+# hat kein COPY tests -> tests landen nur im test-Image, nicht im Prod-Image.

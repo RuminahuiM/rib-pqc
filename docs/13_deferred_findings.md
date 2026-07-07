@@ -990,3 +990,39 @@ Sprint-4 hat 10 von ~14 geplanten Stories done (Carry-Over Mobile + APP-2 + TOK-
 Damit ist der Sprint-Goal-Anteil "End-to-End PQ-Session inkl. Voll-Pfad-Transport-Layer" **erneut verifiziert** nach Sprint-2/3-Aenderungen. F-140 bleibt als kosmetischer Healthcheck-Fix offen.
 
 **Post-Sprint-Cleanup [PQC-85](https://rumidesigns.atlassian.net/browse/PQC-85)** angelegt fuer systematischen Bench-Skript-Review + structlog-Log-Level-Fix (F-137).
+
+
+## Findings aus Sprint-4 QUA-4/5 Integration-Tests am 01.07.2026 (PQC-66/67)
+
+Beim Docker-Test-Run von PQC-67 QUA-5 End-to-End-Integration-Test aufgedeckt.
+
+### Tier-1 (Should-Fix, in eigener Story)
+
+| ID | Titel | Severity | Trigger | Jira | Status |
+|---|---|---|---|---|---|
+| F-142 | `authenticated_session`-Dependency returned unterschiedliche Response-Codes fuer `session_missing`/`session_expired` (401) vs `aead_decrypt_failed`/`nonce_reused` (400). Damit kann ein Angreifer via Response-Code-Enumeration valide `session_id`s aus dem Session-Store enumerieren (klassisches Side-Channel-Info-Leak). Der Autor hat die Reihenfolge (Decrypt vor Replay-Check) explizit "Side-Channel-frei" dokumentiert (`authenticated_session.py` Z.237), aber die Response-Codes wurden nicht analog uniformiert. | Should | vor produktiver Demo / Bericht-Kapitel Security | [PQC-86 SEC-6](https://rumidesigns.atlassian.net/browse/PQC-86) | tracked-in-jira |
+
+### Historie-Update 01.07.2026 abends (PQC-67 QUA-5)
+
+Integration-Test `test_e2e_two_sessions_isolated` hat aufgedeckt: die aktuelle Server-Behavior returned 400 (nicht 401) wenn eine valide session_id mit falschem session_key belegt wird. Testerwartung wurde an aktuelle Reality angepasst mit ausfuehrlichem Test-Comment der auf F-142 + PQC-86 verweist. Sauberer Fix (uniform 401 authentication_failed) verlagert nach Sprint-5, weil Impact-Reach ueber Server + App + Wire-Format geht und ~10 bestehende Tests + secureClient.ts angepasst werden muessen. Ein Rush-Fix im Sprint-4-Endspurt haette hoher Regression-Risiko fuer die Demo. Bericht-Kapitel "Sicherheit" macht das Finding sichtbar als Beispiel fuer "durch Tests entdeckte Design-Improvements".
+
+## Findings aus QUA-4/5 Container-Test-Runs am 07.07.2026 (PQC-66/67 Abschluss)
+
+Der erste volle Container-Run (echtes liboqs, keine Sandbox-Skips) hat zwei latente Prod-Code-Bugs in Alt-Stories aufgedeckt plus einen Test-Infra-Bug. Alle drei in-Session resolved, Fixes im PQC-66-Commit.
+
+### Tier-1 (in-Session resolved)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-143 | Timing-Oracle im User-Enumeration-Schutz (AUT-4): `_DUMMY_HASH` war Modul-Konstante mit fixen Produktions-Params (m=64MB t=3 p=4). Argon2-verify-Kosten folgen den im Hash-String codierten Params, nicht der Hasher-Config. Sobald konfigurierte Params abweichen, unterscheidet sich unknown-email-Timing von wrong-password-Timing (Container-Messung: 270ms vs 22ms, Testfail `test_login_constant_time_unknown_vs_wrong_password`). Zusaetzlich kostete die Konstante ~250ms plus 64MB bei jedem Modul-Import. | Should | Container-Run QUA-4/5 (Sandbox-Skip aufgehoben) | resolved (`auth/password.py`: per-Instanz `self._dummy_hash` mit konfigurierten Params im `__init__` erzeugt, Modul-Konstante entfernt). |
+| F-144 | Case-insensitive alg-Allowlist (RFC 8725, TOK-1 AC-6) scheiterte an case-sensitiver CryptoRegistry: `verify()` reichte den Header-alg unveraendert an `facade.verify()` durch, `'ml-dsa-65'` fand kein Plugin (`AlgorithmNotFoundError` -> `InvalidClaimError`). Feature war damit nie end-to-end funktional (Testfail `test_verify_accepts_alg_case_insensitive_when_in_allowlist`, lief in Sandbox nie). | Should | Container-Run QUA-4/5 | resolved (`services/token_service.py`: `self._alg_canonical` lowercase-zu-kanonisch-Map im `__init__`, Schritt 9 verifiziert mit `canonical_alg`). |
+
+### Tier-2 (Test-Infra)
+
+| ID | Titel | Severity | Trigger | Status |
+|---|---|---|---|---|
+| F-145 | Dockerfile-test-Stage: `uv sync` ohne Flags installiert `[project.optional-dependencies].dev` nicht (Extras erfordern `--extra`, plain sync deckt nur PEP-735 dependency-groups). Test-Image enthielt kein pytest, `docker compose run auth-service-test` konnte nie laufen. | Should | in-Story PQC-66 | resolved (`uv sync --extra dev` plus Warn-Kommentar im Dockerfile). |
+
+### Historie-Update 07.07.2026 (Vorabend Kolloquium)
+
+QUA-4 (PQC-66) plus QUA-5 (PQC-67) abgeschlossen: voller Container-Suite-Run 420 passed, 0 failed. Lehre fuers Reflexions-Kapitel: liboqs-Skip-Marker in der Sandbox verstecken Fehler in liboqs-abhaengigen Tests bis zum ersten echten Container-Run; der Test-Runner-Target (F-145-Fix) macht diesen Run jetzt zum Ein-Kommando-Standard. Timing-Test (F-143) validiert den Enumeration-Schutz jetzt in beiden Richtungen.

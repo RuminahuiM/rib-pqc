@@ -38,18 +38,6 @@ if TYPE_CHECKING:
 _logger = get_logger("rib_pqc.auth.password")
 
 
-# Pre-computed Dummy-Hash fuer constant-time User-Enumeration-Schutz
-# (AUT-4-Vorbereitung). Wird beim Modul-Load erzeugt mit Default-Params, ist
-# also unabhaengig von Settings (auch wenn Tuning sich aendert, der Schutz
-# bleibt funktional). Wert ist konstant pro Prozess-Lebenszeit.
-_DUMMY_HASH: str = Argon2Hasher(
-    time_cost=3,
-    memory_cost=65536,
-    parallelism=4,
-    type=Argon2Type.ID,
-).hash("dummy-password-for-enumeration-defense")
-
-
 class PasswordHasher:
     """Argon2id-Wrapper mit Config-Tuning und User-Enumeration-Schutz.
 
@@ -75,6 +63,16 @@ class PasswordHasher:
             parallelism=config.parallelism,
             salt_length=config.salt_length,
             hash_length=config.hash_length,
+        )
+        # Per-Instanz-Dummy-Hash fuer constant-time User-Enumeration-Schutz
+        # (AUT-4). Wird mit den KONFIGURIERTEN Parametern erzeugt, damit
+        # dummy_verify() exakt die gleiche CPU-Zeit konsumiert wie ein echter
+        # verify-Call. Vorher: Modul-Konstante mit fixen Produktions-Params
+        # (m=64MB t=3 p=4) -> Timing-Oracle sobald konfigurierte Params
+        # abweichen (Container-Testlauf 07.07.2026: unknown-email 270ms vs
+        # wrong-pw 22ms, F-143).
+        self._dummy_hash: str = self._hasher.hash(
+            "dummy-password-for-enumeration-defense",
         )
 
     def hash(self, plain_password: str) -> str:
@@ -141,4 +139,4 @@ class PasswordHasher:
 
         # Erwartet, der Dummy-Hash matched nichts. Wir wollen nur die CPU-Zeit.
         with contextlib.suppress(VerifyMismatchError, InvalidHashError):
-            self._hasher.verify(_DUMMY_HASH, "different-password")
+            self._hasher.verify(self._dummy_hash, "different-password")

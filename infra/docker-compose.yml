@@ -105,6 +105,43 @@ services:
       start_period: 10s
 
   # ----------------------------------------------------------------
+  # auth-service-test - Integration-Test-Runner (PQC-66/67 QUA-4/5)
+  # ----------------------------------------------------------------
+  # Nutzt Dockerfile-target=test (Multi-Stage-Build). Beinhaltet dev-deps
+  # (pytest, respx, fakeredis, ...) plus das tests/ Verzeichnis. Prod-Image
+  # (auth-service) bleibt schlank ohne dev-deps.
+  #
+  # Ausfuehrung (aus infra/):
+  #     docker compose build auth-service-test
+  #     docker compose run --rm auth-service-test
+  #
+  # Der Container startet direkt pytest (CMD im Dockerfile), depends_on redis
+  # damit Integration-Tests einen echten Redis fuer fakeredis-freie Runs
+  # nutzen koennen. Restart: no (das ist ein one-shot Test-Runner).
+  auth-service-test:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+      target: test
+    image: rib-pqc-auth-service:test
+    container_name: pqc-auth-service-test
+    profiles: ["test"]  # Nur bei explizitem --profile test oder docker compose run gestartet
+    environment:
+      RIB_REDIS_URL: redis://redis:6379/0
+      RIB_SQLITE_PATH: /tmp/test-auth.sqlite
+      RIB_LOG_LEVEL: warning
+      RIB_ENVIRONMENT: dev
+      # Test-Umgebung: rate-limit off + memory-storage damit die Tests
+      # nicht durch die 60/min-Global-Rate blockiert werden.
+      RIB_SECURITY__RATE_LIMIT__ENABLED: "false"
+      RIB_SECURITY__RATE_LIMIT__STORAGE_URI: "memory://"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - pqc-net
+
+  # ----------------------------------------------------------------
   # redis - Session-Store
   # Sprint 1: stock redis:7-alpine mit AOF Persistenz auf redis-data Volume.
   # ----------------------------------------------------------------
