@@ -182,4 +182,41 @@ def main() -> int:
         )
     if not variants_to_bench:
         print(
-           
+            f"ERROR: no KEM variants to bench (registered: {supported})",
+            file=sys.stderr,
+        )
+        return 2
+
+    summary: dict[str, Any] = {
+        "warmup_iterations": WARMUP_ITERATIONS,
+        "measure_iterations": MEASURE_ITERATIONS,
+        "nfr_target_ms": 500,
+        "redis_url": bench_redis_url,
+        "registered_kem_algorithms": supported,
+        "skipped_variants": skipped,
+        "variants": {},
+    }
+    rows: list[tuple[str, dict[str, float]]] = []
+    for kem_alg in variants_to_bench:
+        samples = asyncio.run(_run_bench(kem_alg, facade, bench_redis_url))
+        s = summarize(samples)
+        summary["variants"][kem_alg] = s
+        rows.append((f"POST /session/init [{kem_alg}]", s))
+
+    print_table("QUA-6 / PQC-68 / NFR-Perf-1 (Target <= 500 ms)", rows)
+    path = write_result_json("pq_session_init", "NFR-Perf-1", summary)
+    print(f"\n[ok] JSON written: {path}")
+    # SLO-Check
+    # SLO-Check
+    nfr_violation = any(
+        s.get("p95_ms", 0) > summary["nfr_target_ms"]
+        for s in summary["variants"].values()
+    )
+    if nfr_violation:
+        print("WARNING: P95 exceeds NFR-Perf-1 target of 500 ms", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
