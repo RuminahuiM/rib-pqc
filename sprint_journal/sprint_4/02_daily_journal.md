@@ -52,8 +52,8 @@
 | Story | Status | Anmerkung |
 |---|---|---|
 | PQC-55 APP-2 Home-Screen (Carry-Over) | | |
-| PQC-66 QUA-4 Integration-Tests Broker (Carry-Over) | | |
-| PQC-67 QUA-5 End-to-End-Integration-Test (Carry-Over) | | |
+| PQC-66 QUA-4 Integration-Tests Broker (Carry-Over) | Done 07.07 | Container-Run 420 passed, Evidence `evidence/PQC-66_QUA-4_integration_tests_broker_flow.md`, Findings F-143/144/145 |
+| PQC-67 QUA-5 End-to-End-Integration-Test (Carry-Over) | Done 07.07 | Evidence `evidence/PQC-67_QUA-5_end_to_end_integration_test.md`, sichert Demo-Pfad fuers Kolloquium ab |
 | PQC-34 TOK-3 Schlüssel-Rotation | | |
 | PQC-35 TOK-4 JWKS-Endpoint | | |
 
@@ -76,8 +76,8 @@
 | PQC-69 QUA-7 | S | 2 | 3.0 | | | |
 | PQC-70 QUA-8 | S | 2 | 3.0 | | | |
 | PQC-55 APP-2 (Defer) | S | 2 | 3.0 | | | |
-| PQC-66 QUA-4 (Defer) | M | 5 | 7.0 | | | |
-| PQC-67 QUA-5 (Defer) | L | 8 | 15.0 | | | |
+| PQC-66 QUA-4 (Defer-Kandidat, doch umgesetzt) | M | 5 | 7.0 | 2.5 | 2.8x | Docker-Test-Runner-Infra inkl., 3 Debug-Runden am 07.07 |
+| PQC-67 QUA-5 (Defer-Kandidat, doch umgesetzt) | L | 8 | 15.0 | 1.5 | 10.0x | Tests ab erstem Container-Run gruen, Aufwand lag im Client-Nachbau |
 | PQC-34 TOK-3 (Defer) | M | 5 | 7.0 | | | |
 | PQC-35 TOK-4 (Defer) | S | 2 | 3.0 | | | |
 
