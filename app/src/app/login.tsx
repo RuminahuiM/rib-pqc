@@ -32,18 +32,37 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { loginWithProvider, OAuthError } from "@/lib/oauthClient";
 
-// Dummy-Token fuer Sprint-1 Fake-Login. ML-DSA-65-signed JWS-Compact-Format
-// (header.payload.signature, alle base64url) damit jwt-decode + exp-Check
-// funktionieren. Payload: sub=demo-user, exp=Jan 1 2100 (weit in der Zukunft,
-// damit der Fake-Login niemals expired ist beim Auto-Login-Test). Signature
-// ist DUMMY (nicht echt ML-DSA-signiert). Echter Token kommt durch Server-
-// Call in PQC-59 (APP-6 secureClient).
-const DUMMY_TOKEN_HEADER = "eyJhbGciOiJNTC1EU0EtNjUiLCJ0eXAiOiJKV1QiLCJraWQiOiJkdW1teSJ9";
-const DUMMY_TOKEN_PAYLOAD =
-  // {"iss":"pqc-auth-service","sub":"demo-user","iat":1748563200,"exp":4102444800,"auth_method":"local","external_sub":null}
-  "eyJpc3MiOiJwcWMtYXV0aC1zZXJ2aWNlIiwic3ViIjoiZGVtby11c2VyIiwiaWF0IjoxNzQ4NTYzMjAwLCJleHAiOjQxMDI0NDQ4MDAsImF1dGhfbWV0aG9kIjoibG9jYWwiLCJleHRlcm5hbF9zdWIiOm51bGx9";
-const DUMMY_TOKEN_SIGNATURE = "ZHVtbXktc2lnbmF0dXJlLW5vdC1yZWFsLU1MLURTQS02NQ";
-const DUMMY_TOKEN = `${DUMMY_TOKEN_HEADER}.${DUMMY_TOKEN_PAYLOAD}.${DUMMY_TOKEN_SIGNATURE}`;
+// BASE_URL analog zu useSecureClient.ts: EXPO_PUBLIC_API_URL, Fallback
+// localhost (Simulator). Fuer LAN-Demo: app/.env setzt die Notebook-IP.
+const BASE_URL =
+  (process.env.EXPO_PUBLIC_API_URL ?? "").trim() || "http://localhost:8000";
+
+/**
+ * Echter Local-Login gegen POST /auth/local/login (AUT-3, PQC-31).
+ *
+ * Ersetzt den Sprint-1-Fake-Login mit Dummy-Token: dessen nicht-echte
+ * ML-DSA-Signatur waere beim nachfolgenden /session/init mit 401
+ * abgewiesen worden (entdeckt bei D-009-Vorbereitung, 07.07.2026).
+ * Response-Contract: `{broker_token, expires_in}` (routers/auth.py).
+ */
+async function localLogin(email: string, password: string): Promise<string> {
+  const resp = await fetch(`${BASE_URL}/auth/local/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!resp.ok) {
+    if (resp.status === 401) {
+      throw new Error("Email oder Passwort falsch.");
+    }
+    throw new Error(`Login fehlgeschlagen (HTTP ${resp.status}).`);
+  }
+  const body = (await resp.json()) as { broker_token?: string };
+  if (!body.broker_token) {
+    throw new Error("Server-Antwort ohne broker_token.");
+  }
+  return body.broker_token;
+}
 
 // RFC 5322 simplified: gut genug fuer Sprint-1 Form-Validation. Echter
 // Server validiert ohnehin nochmal mit Pydantic EmailStr.
@@ -87,11 +106,12 @@ export default function LoginScreen() {
 
     setIsSubmitting(true);
     try {
-      // Sprint-1 Fake-Login: dummy-token. Echter Server-Call in PQC-59 APP-6.
-      await login(DUMMY_TOKEN);
+      const brokerToken = await localLogin(email.trim().toLowerCase(), password);
+      await login(brokerToken);
       router.replace("/home");
     } catch (err) {
-      Alert.alert("Login fehlgeschlagen", String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      Alert.alert("Login fehlgeschlagen", message);
     } finally {
       setIsSubmitting(false);
     }

@@ -26,6 +26,15 @@ jest.mock("@/contexts/AuthContext", () => ({
   }),
 }));
 
+jest.mock("@/contexts/SessionContext", () => ({
+  useSession: () => ({
+    session: null,
+    isSessionValid: false,
+    setSession: jest.fn(),
+    clearSession: jest.fn(),
+  }),
+}));
+
 jest.mock("expo-router", () => ({
   router: {
     push: (...args: unknown[]) => mockPush(...args),
