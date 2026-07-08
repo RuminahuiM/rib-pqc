@@ -355,8 +355,6 @@ Der finale Container-Testlauf zeigte 420 grüne Tests, und alle drei Performance
 
 _Abbildung 5: Sprint-4-Burndown (Jira-Screenshot)_
 
-> **TODO (Dodoe):** `BurndownChart_Sprint4.png` nach dem Sprint-Abschluss in Jira exportieren und unter `sprint_journal/sprint_4/evidence/images/` ablegen (Ordner existiert schon), dann rendert das Bild oben automatisch.
-
 | Gut gelaufen | Weniger gut | Erkenntnisse für künftige Projekte |
 |---|---|---|
 | Day-Marathon-Strategie mit Doku-Fallback ging auf | QUA-4/5 erst nach offiziellem Sprint-Ende fertig | Doku-Struktur beim Planning fixieren, nicht am Abgabetag |
@@ -452,7 +450,7 @@ Die in 2.4 beschriebene Besonderheit, klassische Schätzung ohne AI gegen reale 
 | 1 | 46 (+10 im Sprint aufgenommen) | 47 | ca. 92 h | ca. 14,3 h | 6.4x |
 | 2 | 56 | 56 | ca. 83 h | ca. 6,1 h (Block-Session) | 13.6x |
 | 3 | 79 | 52 | ca. 76 h | ca. 7,3 h | 10.4x |
-| 4 | 66 | 40 plus 26 DOC | teilweise erfasst | teilweise erfasst | Einzelwerte (QUA-4 2.8x, QUA-5 10x) |
+| 4 | 66 | 66 (40 plus 26 DOC) | ca. 89 h | ca. 21 h (nachträglich geschätzt) | nicht ausgewiesen; live erfasst nur QUA-4 (2.8x) und QUA-5 (10x) |
 
 _Tabelle 17: Velocity und AI-Multiplier pro Sprint (Quellen: Sprint-Reviews Abschnitt 6, Daily-Journal-Zeittabellen, Jira-Worklogs)_
 
@@ -741,9 +739,7 @@ Der Broker-Token ist JWS-Compact-förmig aufgebaut (Header.Payload.Signatur, bas
 
 ### 10.3 Hybrides PQ-TLS server-seitig
 
-nginx terminiert TLS mit OpenSSL 3 plus oqs-provider (Multi-Stage-Docker-Build ab `openquantumsafe/oqs-ossl3`), konfiguriert mit `ssl_ecdh_curve X25519MLKEM768:X25519:secp256r1;`, also PQ-hybrid bevorzugt mit klassischem Fallback. Den Handshake habe ich dreifach verifiziert: per `openssl s_client -groups X25519MLKEM768` (NamedGroup `0x11ec` in der Server-Antwort), im Chrome-Browser (Security-Panel zeigt X25519MLKEM768) und als reproduzierbare Demo D-005/D-007.
-
-> **TODO (Dodoe):** Screenshot einfügen: Chrome-Security-Panel oder Terminal mit dem `openssl s_client`-Output, jeweils mit sichtbarem X25519MLKEM768. Beschriftung: _Abbildung: Nachweis des hybriden PQ-TLS-Handshakes._ Nummerierung danach im Abbildungsverzeichnis nachziehen. Wichtig für die Einordnung: Das Server-Zertifikat bleibt ECDSA, weil 2026 keine öffentliche CA ML-DSA-Zertifikate in der Breite ausstellt; PQ wirkt hier auf den Schlüsselaustausch (die dringende HNDL-Bedrohung), nicht auf die Zertifikats-Signatur.
+nginx terminiert TLS mit OpenSSL 3 plus oqs-provider (Multi-Stage-Docker-Build ab `openquantumsafe/oqs-ossl3`), konfiguriert mit `ssl_ecdh_curve X25519MLKEM768:X25519:secp256r1;`, also PQ-hybrid bevorzugt mit klassischem Fallback. Den Handshake habe ich dreifach verifiziert: per `openssl s_client -groups X25519MLKEM768` (NamedGroup `0x11ec` in der Server-Antwort), im Chrome-Browser (Security-Panel zeigt X25519MLKEM768) und als reproduzierbare Demo D-005/D-007. Wichtig für die Einordnung: Das Server-Zertifikat bleibt ECDSA, weil 2026 keine öffentliche CA ML-DSA-Zertifikate in der Breite ausstellt; PQ wirkt hier auf den Schlüsselaustausch (die dringende HNDL-Bedrohung), nicht auf die Zertifikats-Signatur.
 
 ### 10.4 PQ-Session und verschlüsselter Datenkanal
 
@@ -835,7 +831,13 @@ Erwähnenswert ist die Microsoft-Registrierung als Single-Tenant-App: Sie vermei
 
 Die Expo-App (SDK 54, TypeScript) ist bewusst minimal: Login-Screen (lokal, Google, Microsoft), Home-Screen, Profile-Screen. Die Krypto-Seite nutzt `@noble/post-quantum` (auditiert, dependency-free) für ML-KEM-768 sowie `@noble/ciphers` für AES-256-GCM, den Broker-Token hält `expo-secure-store` im Plattform-Keystore. Zwei Bausteine kapseln die Komplexität: ein `SessionContext` (globaler Session-State) und `secureClient.ts`, ein HTTP-Wrapper, der Requests automatisch verschlüsselt und Responses entschlüsselt, sodass Screens normale Fetch-Semantik sehen. Die Kompatibilität der App-Krypto mit der Server-Krypto ist durch einen Cross-Validation-Vector abgesichert (identische HKDF-Ableitung auf beiden Seiten, F-098).
 
-> **TODO (Dodoe):** Zwei Screenshots vom iPhone einfügen: (1) Login-Screen mit den drei Login-Optionen, (2) Profile-Screen mit angezeigten Profildaten und grünem Kanal-Status "ML-KEM-768" plus Session-ID. Beschriftungen: _Abbildung: Login-Screen der Mock-App_ und _Abbildung: Profile-Screen nach entschlüsselter Antwort über die PQ-Session._ Nummerierung danach im Abbildungsverzeichnis nachziehen.
+![Login-Screen der Mock-App](sprint_journal/sprint_4/evidence/images/App_Login.png)
+
+_Abbildung 14: Login-Screen der Mock-App mit den drei Login-Optionen_
+
+![App nach dem Login](sprint_journal/sprint_4/evidence/images/App_Home.png)
+
+_Abbildung 15: Die App nach erfolgreichem Login (Home-Screen mit Kanal-Status)_
 
 ---
 
@@ -1019,8 +1021,8 @@ Auswahl der zentralen Quellen; das vollständige, kommentierte Verzeichnis mit a
 | Abbildung 11 | Interne Komponenten des Auth-Service | 9.3 |
 | Abbildung 12 | Etablierung der PQ-Session (UC-4) | 10.4 |
 | Abbildung 13 | Federated Login mit Google (UC-2) | 10.5 |
-
-> **TODO (Dodoe):** Nach dem Einfügen der restlichen Screenshots (TLS-Nachweis in 10.3, App-Screens in 10.6) hier nachtragen und durchnummerieren.
+| Abbildung 14 | Login-Screen der Mock-App | 10.6 |
+| Abbildung 15 | App nach erfolgreichem Login | 10.6 |
 
 ### Tabellenverzeichnis
 
