@@ -831,11 +831,11 @@ Erwähnenswert ist die Microsoft-Registrierung als Single-Tenant-App: Sie vermei
 
 Die Expo-App (SDK 54, TypeScript) ist bewusst minimal: Login-Screen (lokal, Google, Microsoft), Home-Screen, Profile-Screen. Die Krypto-Seite nutzt `@noble/post-quantum` (auditiert, dependency-free) für ML-KEM-768 sowie `@noble/ciphers` für AES-256-GCM, den Broker-Token hält `expo-secure-store` im Plattform-Keystore. Zwei Bausteine kapseln die Komplexität: ein `SessionContext` (globaler Session-State) und `secureClient.ts`, ein HTTP-Wrapper, der Requests automatisch verschlüsselt und Responses entschlüsselt, sodass Screens normale Fetch-Semantik sehen. Die Kompatibilität der App-Krypto mit der Server-Krypto ist durch einen Cross-Validation-Vector abgesichert (identische HKDF-Ableitung auf beiden Seiten, F-098).
 
-![Login-Screen der Mock-App](sprint_journal/sprint_4/evidence/images/App_Login.png)
+![Login-Screen der Mock-App](sprint_journal/sprint_4/evidence/images/App_Login.jpg)
 
 _Abbildung 14: Login-Screen der Mock-App mit den drei Login-Optionen_
 
-![App nach dem Login](sprint_journal/sprint_4/evidence/images/App_Home.png)
+![App nach dem Login](sprint_journal/sprint_4/evidence/images/App_Home.jpg)
 
 _Abbildung 15: Die App nach erfolgreichem Login (Home-Screen mit Kanal-Status)_
 
